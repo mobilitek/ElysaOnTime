@@ -31,6 +31,12 @@ Routes disponibles :
 - `GET /api/projects?clientId=:clientId`
 - `POST /api/projects`
 - `PATCH /api/projects/:id`
+- `GET /api/work-entries`
+- `POST /api/work-entries`
+- `PATCH /api/work-entries/:id`
+- `POST /api/work-entries/toggle-billed`
+- `POST /api/work-entries/toggle-deleted`
+- `POST /api/work-entries/:id/duplicate`
 
 ## Commandes
 

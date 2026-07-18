@@ -9,6 +9,7 @@ type Props = {
   user: User;
   onLanguageChange: (language: Language) => void;
   onLogout: () => Promise<void>;
+  onNavigateWorkLog: () => void;
   onNavigateProjects: () => void;
 };
 
@@ -37,7 +38,7 @@ const copy = {
   },
 } as const;
 
-export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavigateProjects }: Props) {
+export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +115,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
       <header className="app-header">
         <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
         <nav className="app-nav" aria-label="Navigation principale">
-          <button type="button" disabled>{text.workLog}</button>
+          <button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button>
           <button type="button" className="active">{text.clients}</button>
           <button type="button" onClick={onNavigateProjects}>{text.projects}</button>
         </nav>

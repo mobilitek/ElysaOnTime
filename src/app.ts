@@ -4,6 +4,7 @@ import { database } from './database';
 import { auth } from './modules/auth';
 import { clientRoutes } from './modules/clients';
 import { projectRoutes } from './modules/projects';
+import { workEntryRoutes } from './modules/work-entries';
 
 export const createApp = () =>
   new Elysia({ name: 'ontime' })
@@ -30,4 +31,5 @@ export const createApp = () =>
     })
     .use(auth)
     .use(clientRoutes)
-    .use(projectRoutes);
+    .use(projectRoutes)
+    .use(workEntryRoutes);

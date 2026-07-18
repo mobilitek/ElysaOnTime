@@ -8,7 +8,7 @@ type RateMode = 'future_only' | 'update_unbilled';
 
 type Props = {
   language: Language; user: User; onLanguageChange: (language: Language) => void;
-  onLogout: () => Promise<void>; onNavigateClients: () => void;
+  onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void;
 };
 
 const copy = {
@@ -44,7 +44,7 @@ const copy = {
 
 const validRate = /^\d{1,10}(\.\d{1,2})?$/;
 
-export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNavigateClients }: Props) {
+export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState('');
@@ -127,7 +127,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   return <main className="app-page">
     <header className="app-header">
       <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
-      <nav className="app-nav"><button type="button" disabled>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button></nav>
+      <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button></nav>
       <div className="header-actions"><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div></div>
     </header>
     <section className="content-shell">
