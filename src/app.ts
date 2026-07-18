@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { database } from './database';
 
@@ -9,7 +10,7 @@ export const createApp = () =>
     }))
     .get('/health', async ({ set }) => {
       try {
-        await database`SELECT 1`;
+        await database.execute(sql`SELECT 1`);
 
         return {
           status: 'ok',

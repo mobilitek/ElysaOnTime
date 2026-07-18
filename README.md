@@ -8,6 +8,7 @@ Socle minimal d'une API Bun/ElysiaJS avec PostgreSQL.
 cp .env.example .env
 docker compose up -d
 bun install
+bun run db:migrate
 bun run dev
 ```
 
@@ -19,7 +20,17 @@ L'API répond sur `http://localhost:3000` et son contrôle de santé sur
 ```bash
 bun test
 bun run typecheck
+bun run db:generate
+bun run db:migrate
+bun run db:studio
 ```
 
-La structure métier et le schéma PostgreSQL seront ajoutés lorsque les besoins
-fonctionnels d'Ontime auront été définis.
+Le schéma Drizzle se trouve dans `src/db/schema.ts`. Les migrations SQL générées
+et versionnées se trouvent dans `drizzle/`.
+
+Lors d'une modification du schéma :
+
+```bash
+bun run db:generate
+bun run db:migrate
+```

@@ -7,6 +7,7 @@ Ce document rassemble les exigences confirmées pour reconstruire OnTime avec :
 - Bun comme environnement d'exécution;
 - ElysiaJS pour l'API;
 - PostgreSQL pour la persistance;
+- Drizzle ORM et Drizzle Kit pour l'accès typé et les migrations;
 - React et Vite pour l'interface Web.
 
 Il décrit le comportement attendu. Il ne constitue pas encore un plan
@@ -544,12 +545,19 @@ minimales pressenties sont les suivantes.
 - Véritable gestion de factures.
 - Gestion plus avancée de l'archivage et de la suppression définitive.
 
-## 14. Éléments à préciser pendant la conception technique
+## 14. Décisions techniques et éléments restant à préciser
+
+La couche de données utilise :
+
+- Drizzle ORM pour définir le schéma en TypeScript et effectuer les requêtes;
+- Drizzle Kit pour générer et appliquer les migrations SQL;
+- des migrations SQL conservées dans Git;
+- une table interne Drizzle dans PostgreSQL pour suivre les migrations déjà
+  appliquées.
 
 Les exigences métier principales sont définies. La conception technique devra
 encore arrêter notamment :
 
-- la bibliothèque de migration et d'accès à PostgreSQL;
 - le mécanisme précis de hachage des mots de passe;
 - la structure de l'application React et de l'API Elysia;
 - le contrat des routes API;
