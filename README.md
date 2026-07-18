@@ -9,11 +9,13 @@ cp .env.example .env
 docker compose up -d
 bun install
 bun run db:migrate
-bun run dev
+bun run dev:api
+bun run dev:web
 ```
 
 L'API répond sur `http://localhost:3000` et son contrôle de santé sur
-`http://localhost:3000/health`.
+`http://localhost:3000/health`. L'interface React répond sur
+`http://localhost:5173` en développement.
 
 ## Commandes
 
