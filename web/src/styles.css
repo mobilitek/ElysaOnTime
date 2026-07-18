@@ -338,6 +338,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .journal-actions button { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: white; cursor: pointer; }
 .journal-actions button.danger { color: #b42318; }
 .journal-actions button:disabled { opacity: .45; cursor: default; }
+.journal-loading { display: flex; align-items: center; gap: 10px; margin: 8px 0; color: var(--ink-soft); font-size: 13px; }
+.journal-loading .loading-ring { width: 18px; height: 18px; }
 .journal-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: white; }
 .journal-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .journal-table th { padding: 11px 10px; background: #f7f9fc; color: var(--ink-soft); text-align: left; white-space: nowrap; cursor: pointer; }
@@ -361,6 +363,9 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .profile-card label { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .profile-card input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px; color: var(--ink); font: inherit; text-transform: none; letter-spacing: normal; }
 .success-message { margin: 0; padding: 10px 12px; border-radius: 8px; background: #eaf8ef; color: #18733b; font-size: 13px; }
+.registration-names { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.registration-names label { margin: 0; }
+.account-switch { width: 100%; margin-top: 16px; border: 0; background: transparent; color: var(--blue); font-weight: 800; cursor: pointer; }
 
 @media (max-width: 1050px) {
   .journal-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }

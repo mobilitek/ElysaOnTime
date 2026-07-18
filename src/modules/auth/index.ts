@@ -5,7 +5,7 @@ import {
   SESSION_COOKIE_NAME,
 } from './constants';
 import { getSessionToken } from './cookie';
-import { authenticate, changePassword, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, updateProfile } from './service';
+import { authenticate, changePassword, createUser, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, updateProfile } from './service';
 
 const credentialsSchema = t.Object({
   email: t.String({ format: 'email', maxLength: 320 }),
@@ -14,6 +14,10 @@ const credentialsSchema = t.Object({
 });
 
 export const auth = new Elysia({ prefix: '/api/auth' })
+  .post('/register', async ({ body, status }) => {
+    try { return status(201, { user: await createUser(body) }); }
+    catch (error) { if (error instanceof DuplicateEmailError) return status(409, { error: 'EMAIL_EXISTS' }); throw error; }
+  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }), password: t.String({ minLength: 8, maxLength: 200 }) }) })
   .post(
     '/login',
     async ({ body, cookie, status }) => {

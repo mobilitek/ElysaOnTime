@@ -5,6 +5,7 @@ const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === '1';
 const testEmail = `auth-${crypto.randomUUID()}@example.com`;
 let userId: string | undefined;
 let duplicateUserId: string | undefined;
+let registeredUserId: string | undefined;
 
 const { createApp } = await import('../../app');
 const { database } = await import('../../database');
@@ -28,6 +29,7 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
       await database.delete(users).where(eq(users.id, userId));
     }
     if (duplicateUserId) await database.delete(users).where(eq(users.id, duplicateUserId));
+    if (registeredUserId) await database.delete(users).where(eq(users.id, registeredUserId));
   });
 
   test('rejects invalid credentials', async () => {
@@ -43,6 +45,15 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
     );
 
     expect(response.status).toBe(401);
+  });
+
+  test('registers a new user and rejects a duplicate email', async () => {
+    const email = `register-${crypto.randomUUID()}@example.com`; const app = createApp();
+    const response = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: ' New ', lastName: ' User ', email: email.toUpperCase(), password: 'register-password' }) }));
+    expect(response.status).toBe(201); const payload = (await response.json()) as { user: { id: string; email: string; firstName: string; lastName: string } }; registeredUserId = payload.user.id;
+    expect(payload.user).toMatchObject({ email, firstName: 'New', lastName: 'User' });
+    const duplicate = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: 'Other', lastName: 'User', email, password: 'register-password' }) }));
+    expect(duplicate.status).toBe(409);
   });
 
   test('creates, reads and deletes a session', async () => {

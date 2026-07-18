@@ -21,6 +21,7 @@ const copy = {
     signedIn: 'Votre session OnTime est active.', continue: 'Continuer vers le journal',
     logout: 'Se déconnecter', productTitle: 'Chaque heure compte.',
     productText: 'Consignez votre travail, suivez vos projets et préparez vos exports sans perdre le fil.',
+    createAccount: 'Créer un compte', haveAccount: 'J’ai déjà un compte', registerTitle: 'Créer votre compte', registerSubtitle: 'Commencez votre journal de travail OnTime.', firstName: 'Prénom', lastName: 'Nom', confirmPassword: 'Confirmer le mot de passe', register: 'Créer le compte', registering: 'Création…', mismatch: 'Les mots de passe ne correspondent pas.', emailExists: 'Cette adresse courriel est déjà utilisée.', accountCreated: 'Compte créé. Vous pouvez maintenant vous connecter.',
   },
   en: {
     eyebrow: 'WORK LOG', title: 'Welcome back',
@@ -34,6 +35,7 @@ const copy = {
     secure: 'Secure connection', welcome: 'Hello', signedIn: 'Your OnTime session is active.',
     continue: 'Continue to work log', logout: 'Sign out', productTitle: 'Every hour matters.',
     productText: 'Log your work, follow your projects and prepare exports without losing track.',
+    createAccount: 'Create an account', haveAccount: 'I already have an account', registerTitle: 'Create your account', registerSubtitle: 'Start your OnTime work log.', firstName: 'First name', lastName: 'Last name', confirmPassword: 'Confirm password', register: 'Create account', registering: 'Creating…', mismatch: 'Passwords do not match.', emailExists: 'This email address is already in use.', accountCreated: 'Account created. You can now sign in.',
   },
 } as const;
 
@@ -47,6 +49,11 @@ export function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +101,21 @@ export function App() {
     }
   };
 
+  const register = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError(null); setNotice(null);
+    if (password !== passwordConfirmation) { setError(text.mismatch); return; }
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email, password }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) { setError(payload.error === 'EMAIL_EXISTS' ? text.emailExists : text.unavailable); return; }
+      setIsRegistering(false); setFirstName(''); setLastName(''); setPassword(''); setPasswordConfirmation(''); setNotice(text.accountCreated);
+    } catch { setError(text.unavailable); }
+    finally { setIsLoading(false); }
+  };
+
+  const toggleRegistration = () => { setIsRegistering((value) => !value); setError(null); setNotice(null); setPassword(''); setPasswordConfirmation(''); };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -135,19 +157,22 @@ export function App() {
           <div className="form-content">
             {isCheckingSession ? <div className="session-loading" aria-live="polite"><span className="loading-ring" /></div>
               : (
-                <><p className="eyebrow">{text.eyebrow}</p><h1>{text.title}</h1><p className="form-subtitle">{text.subtitle}</p>
-                  <form onSubmit={login} noValidate>
+                <><p className="eyebrow">{text.eyebrow}</p><h1>{isRegistering ? text.registerTitle : text.title}</h1><p className="form-subtitle">{isRegistering ? text.registerSubtitle : text.subtitle}</p>
+                  <form onSubmit={isRegistering ? register : login} noValidate>
+                    {isRegistering ? <div className="registration-names"><label>{text.firstName}<input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={100} required disabled={isLoading} /></label><label>{text.lastName}<input value={lastName} onChange={(event) => setLastName(event.target.value)} maxLength={100} required disabled={isLoading} /></label></div> : null}
                     <label htmlFor="email">{text.email}</label>
                     <input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={text.emailPlaceholder} autoComplete="email" required disabled={isLoading} />
                     <label htmlFor="password">{text.password}</label>
-                    <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete="current-password" minLength={8} required disabled={isLoading} />
-                    <div className="form-options">
+                    <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete={isRegistering ? 'new-password' : 'current-password'} minLength={8} required disabled={isLoading} />
+                    {isRegistering ? <><label htmlFor="password-confirmation">{text.confirmPassword}</label><input id="password-confirmation" type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={8} required disabled={isLoading} /></> : <div className="form-options">
                       <label className="checkbox-label"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} disabled={isLoading} /><span className="custom-checkbox" aria-hidden="true" />{text.remember}</label>
                       <button className="text-button" type="button" title={text.phaseTwo} disabled>{text.forgot}</button>
-                    </div>
+                    </div>}
                     {error ? <p className="error-message" role="alert">{error}</p> : null}
-                    <button className="primary-button" type="submit" disabled={isLoading || !email || password.length < 8}>{isLoading ? text.loading : text.login}</button>
+                    {notice ? <p className="success-message" role="status">{notice}</p> : null}
+                    <button className="primary-button" type="submit" disabled={isLoading || !email || password.length < 8 || (isRegistering && (!firstName.trim() || !lastName.trim() || passwordConfirmation.length < 8))}>{isLoading ? (isRegistering ? text.registering : text.loading) : (isRegistering ? text.register : text.login)}</button>
                   </form>
+                  <button className="account-switch" type="button" onClick={toggleRegistration}>{isRegistering ? text.haveAccount : text.createAccount}</button>
                   <p className="security-note"><span aria-hidden="true">●</span> {text.secure}</p>
                 </>
               )}

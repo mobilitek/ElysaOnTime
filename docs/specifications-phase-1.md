@@ -28,7 +28,7 @@ utilisateur afin de préparer une évolution multi-utilisateur.
 La phase 1 comprend :
 
 - une authentification par adresse courriel et mot de passe;
-- un compte créé par une commande d'administration;
+- la création autonome d'un compte depuis la page de connexion;
 - la gestion du profil;
 - la gestion des clients;
 - la gestion des projets et de leur taux horaire;
@@ -40,7 +40,6 @@ La phase 1 comprend :
 
 La phase 1 ne comprend pas :
 
-- l'inscription publique;
 - la récupération du mot de passe par courriel;
 - la gestion de véritables factures;
 - la recherche textuelle dans les descriptions;
@@ -51,10 +50,13 @@ La phase 1 ne comprend pas :
 
 ## 4. Authentification et profil
 
-### 4.1 Compte initial
+### 4.1 Création d'un compte
 
-- Aucun formulaire public de création de compte n'est disponible.
-- Le premier compte est créé par une commande d'administration.
+- Un formulaire public permet de créer un compte avec prénom, nom, adresse
+  courriel, mot de passe et confirmation du mot de passe.
+- L'adresse courriel doit être unique sans tenir compte de la casse.
+- La vérification de l'adresse courriel n'est pas incluse pour le moment.
+- La commande d'administration demeure disponible pour créer un compte.
 - Le mot de passe n'est jamais inscrit dans le code ou dans Git.
 
 ### 4.2 Connexion
@@ -82,7 +84,7 @@ notamment à construire le nom des fichiers Excel.
 
 La phase 2 pourra ajouter :
 
-- la création publique de profils;
+- la vérification des adresses courriel;
 - plusieurs utilisateurs avec isolation complète de leurs données;
 - la récupération du mot de passe par courriel.
 

@@ -40,6 +40,7 @@ Routes disponibles :
 - `GET /api/work-entries/export`
 - `PATCH /api/auth/profile`
 - `POST /api/auth/change-password`
+- `POST /api/auth/register`
 
 ## Commandes
 

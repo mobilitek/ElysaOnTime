@@ -39,6 +39,11 @@ describe.skipIf(!run)('work entries integration', () => {
     expect((await request('/api/work-entries', 'POST', { projectId, workDate: '2026-07-17', durationMinutes: 20, description: 'Invalid' })).status).toBe(422);
   });
 
+  test('rejects inverted date ranges for lists and exports', async () => {
+    expect((await request('/api/work-entries?from=2026-07-31&to=2026-07-01&includeDeleted=false&page=1&pageSize=50&sortBy=workDate&sortDirection=desc')).status).toBe(422);
+    expect((await request('/api/work-entries/export?from=2026-07-31&to=2026-07-01&includeDeleted=false&confidential=true&language=fr')).status).toBe(422);
+  });
+
   test('toggles billed and deleted state, and filters deleted entries', async () => {
     expect((await request('/api/work-entries/toggle-billed', 'POST', { ids: [entryId] })).status).toBe(200);
     expect((await request('/api/work-entries/toggle-deleted', 'POST', { ids: [entryId] })).status).toBe(200);
