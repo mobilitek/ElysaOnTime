@@ -6,7 +6,7 @@ const testEmail = `auth-${crypto.randomUUID()}@example.com`;
 let userId: string | undefined;
 
 const { createApp } = await import('../../app');
-const { database, closeDatabase } = await import('../../database');
+const { database } = await import('../../database');
 const { users } = await import('../../db/schema');
 const { createUser } = await import('./service');
 
@@ -25,7 +25,6 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
     if (userId) {
       await database.delete(users).where(eq(users.id, userId));
     }
-    await closeDatabase();
   });
 
   test('rejects invalid credentials', async () => {

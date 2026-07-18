@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { ClientsPage } from './ClientsPage';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string };
@@ -99,6 +100,10 @@ export function App() {
     }
   };
 
+  if (!isCheckingSession && user) {
+    return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} />;
+  }
+
   return (
     <main className="login-page">
       <section className="login-shell" aria-label={language === 'fr' ? 'Connexion OnTime' : 'OnTime login'}>
@@ -122,14 +127,7 @@ export function App() {
 
           <div className="form-content">
             {isCheckingSession ? <div className="session-loading" aria-live="polite"><span className="loading-ring" /></div>
-              : user ? (
-                <div className="welcome-card">
-                  <span className="success-icon" aria-hidden="true">✓</span><p className="eyebrow">ONTIME</p>
-                  <h1>{text.welcome}, {user.firstName}</h1><p className="form-subtitle">{text.signedIn}</p>
-                  <button className="primary-button" type="button" disabled>{text.continue}</button>
-                  <button className="text-button logout-button" type="button" onClick={logout} disabled={isLoading}>{text.logout}</button>
-                </div>
-              ) : (
+              : (
                 <><p className="eyebrow">{text.eyebrow}</p><h1>{text.title}</h1><p className="form-subtitle">{text.subtitle}</p>
                   <form onSubmit={login} noValidate>
                     <label htmlFor="email">{text.email}</label>

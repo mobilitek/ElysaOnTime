@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { database } from './database';
 import { auth } from './modules/auth';
+import { clientRoutes } from './modules/clients';
 
 export const createApp = () =>
   new Elysia({ name: 'ontime' })
@@ -26,4 +27,5 @@ export const createApp = () =>
         };
       }
     })
-    .use(auth);
+    .use(auth)
+    .use(clientRoutes);

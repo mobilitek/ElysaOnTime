@@ -4,6 +4,7 @@ import {
   REMEMBERED_SESSION_DURATION_SECONDS,
   SESSION_COOKIE_NAME,
 } from './constants';
+import { getSessionToken } from './cookie';
 import { authenticate, deleteSession, getUserBySessionToken } from './service';
 
 const credentialsSchema = t.Object({
@@ -11,9 +12,6 @@ const credentialsSchema = t.Object({
   password: t.String({ minLength: 8, maxLength: 200 }),
   rememberMe: t.Optional(t.Boolean()),
 });
-
-const getSessionToken = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
 
 export const auth = new Elysia({ prefix: '/api/auth' })
   .post(
