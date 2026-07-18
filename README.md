@@ -23,6 +23,7 @@ bun run typecheck
 bun run db:generate
 bun run db:migrate
 bun run db:studio
+bun run user:create
 ```
 
 Le schéma Drizzle se trouve dans `src/db/schema.ts`. Les migrations SQL générées

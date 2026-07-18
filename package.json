@@ -7,7 +7,9 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "test": "bun test",
+    "test:integration": "RUN_INTEGRATION_TESTS=1 bun test",
     "typecheck": "bunx tsc --noEmit",
+    "user:create": "bun src/commands/create-user.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

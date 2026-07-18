@@ -1,9 +1,10 @@
 import { sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { database } from './database';
+import { auth } from './modules/auth';
 
 export const createApp = () =>
-  new Elysia()
+  new Elysia({ name: 'ontime' })
     .get('/', () => ({
       name: 'Elysia Ontime API',
       status: 'ok',
@@ -24,4 +25,5 @@ export const createApp = () =>
           database: 'unavailable',
         };
       }
-    });
+    })
+    .use(auth);
