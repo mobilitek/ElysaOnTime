@@ -20,6 +20,7 @@
   "dependencies": {
     "drizzle-orm": "^0.45.2",
     "elysia": "^1.4.23",
+    "exceljs": "^4.4.0",
     "postgres": "^3.4.7",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

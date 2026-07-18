@@ -37,6 +37,7 @@ Routes disponibles :
 - `POST /api/work-entries/toggle-billed`
 - `POST /api/work-entries/toggle-deleted`
 - `POST /api/work-entries/:id/duplicate`
+- `GET /api/work-entries/export`
 
 ## Commandes
 

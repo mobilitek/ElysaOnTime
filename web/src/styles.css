@@ -317,6 +317,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 }
 
 .worklog-shell { max-width: 1500px; }
+.heading-actions { display: flex; align-items: center; gap: 10px; }
+.export-button { min-width: 140px; }
 .confidential-switch { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .journal-filters { display: grid; grid-template-columns: 1.6fr repeat(4, minmax(130px, 1fr)); gap: 14px; align-items: end; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: white; }
 .journal-filters label, .entry-modal form > label { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }

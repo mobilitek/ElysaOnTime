@@ -3,6 +3,7 @@ import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
 import { getUserBySessionToken } from '../auth/service';
 import { createEntry, duplicateEntry, EntryNotFoundError, InvalidDescriptionError, InvalidDurationError, listEntries, ProjectUnavailableError, toggleEntries, updateEntry } from './service';
+import { exportWorkEntries } from './export';
 
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
 const date = t.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' });
@@ -16,6 +17,13 @@ const errors = (error: unknown, status: (code: number, body: unknown) => unknown
 };
 
 export const workEntryRoutes = new Elysia({ prefix: '/api/work-entries' })
+  .get('/export', async ({ cookie, query, set, status }) => {
+    const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    const result = await exportWorkEntries(user, { from: query.from, to: query.to, clientId: query.clientId, projectId: query.projectId, includeDeleted: query.includeDeleted === 'true', confidential: query.confidential === 'true', language: query.language });
+    set.headers['content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    set.headers['content-disposition'] = `attachment; filename="${result.filename}"`;
+    return new Uint8Array(result.buffer as ArrayBuffer);
+  }, { query: t.Object({ from: date, to: date, clientId: t.Optional(t.String({ format: 'uuid' })), projectId: t.Optional(t.String({ format: 'uuid' })), includeDeleted: t.Union([t.Literal('true'), t.Literal('false')]), confidential: t.Union([t.Literal('true'), t.Literal('false')]), language: t.Union([t.Literal('fr'), t.Literal('en')]) }) })
   .get('/', async ({ cookie, query, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' });
     return listEntries(user.id, { from: query.from, to: query.to, clientId: query.clientId, projectId: query.projectId, includeDeleted: query.includeDeleted === 'true', page: Number(query.page ?? 1), pageSize: Number(query.pageSize ?? 50), sortBy: query.sortBy ?? 'workDate', sortDirection: query.sortDirection ?? 'desc' });

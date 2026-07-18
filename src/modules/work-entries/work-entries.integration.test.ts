@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import ExcelJS from 'exceljs';
 
 const run = process.env.RUN_INTEGRATION_TESTS === '1';
 const email = `entries-${crypto.randomUUID()}@example.com`;
@@ -51,5 +52,27 @@ describe.skipIf(!run)('work entries integration', () => {
     const response = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(response.status).toBe(201);
     expect(((await response.json()) as { entry: object }).entry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '89.00', amount: '133.50', isBilled: false, isDeleted: false });
+  });
+
+  test('exports a confidential bilingual Excel workbook without financial or billed columns', async () => {
+    const response = await request(`/api/work-entries/export?from=2026-07-01&to=2026-07-31&clientId=${clientId}&projectId=${projectId}&includeDeleted=true&confidential=true&language=fr`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('spreadsheetml.sheet');
+    expect(response.headers.get('content-disposition')).toContain('EntryTest_OnTime_Journal-client_01-07-2026_to_31-07-2026.xlsx');
+    const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(await response.arrayBuffer());
+    const sheet = workbook.getWorksheet('Journal'); if (!sheet) throw new Error('Expected Journal sheet');
+    const headers = sheet.getRow(1).values as unknown[];
+    expect(headers).toEqual([undefined, 'Jour', 'Date', 'Description', 'Heures']);
+    expect(sheet.rowCount).toBe(3);
+  });
+
+  test('exports dynamic identification and financial columns when not confidential', async () => {
+    const response = await request('/api/work-entries/export?from=2026-07-01&to=2026-07-31&includeDeleted=false&confidential=false&language=en');
+    const bytes = await response.arrayBuffer();
+    if (process.env.EXPORT_QA_PATH) await Bun.write(process.env.EXPORT_QA_PATH, bytes);
+    const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(bytes);
+    const sheet = workbook.getWorksheet('Work log'); if (!sheet) throw new Error('Expected Work log sheet');
+    expect(sheet.getRow(1).values).toEqual([undefined, 'Client', 'Project', 'Day', 'Date', 'Description', 'Hours', 'Rate', 'Value']);
+    expect(sheet.getRow(sheet.rowCount).getCell(5).value).toBe('Total');
   });
 });
