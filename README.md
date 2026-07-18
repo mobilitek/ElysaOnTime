@@ -28,6 +28,9 @@ Routes disponibles :
 - `GET /api/clients`
 - `POST /api/clients`
 - `PATCH /api/clients/:id`
+- `GET /api/projects?clientId=:clientId`
+- `POST /api/projects`
+- `PATCH /api/projects/:id`
 
 ## Commandes
 

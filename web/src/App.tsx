@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { ClientsPage } from './ClientsPage';
+import { ProjectsPage } from './ProjectsPage';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string };
@@ -48,6 +49,7 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [page, setPage] = useState<'clients' | 'projects'>('clients');
   const text = copy[language];
 
   useEffect(() => {
@@ -101,7 +103,9 @@ export function App() {
   };
 
   if (!isCheckingSession && user) {
-    return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} />;
+    return page === 'clients'
+      ? <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateProjects={() => setPage('projects')} />
+      : <ProjectsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} />;
   }
 
   return (

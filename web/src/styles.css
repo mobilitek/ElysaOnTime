@@ -278,6 +278,24 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .client-modal .error-message { margin: 16px 0 0; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; margin-top: 28px; }
 .secondary-button { min-height: 52px; border: 1px solid #d4dfe8; border-radius: 12px; color: #586a7d; background: #fff; cursor: pointer; font-weight: 700; }
+.project-toolbar { display: flex; align-items: center; gap: 14px; margin: -8px 0 24px; }
+.project-toolbar label { color: #536579; font-size: 0.84rem; font-weight: 750; }
+.project-toolbar select { min-width: 280px; height: 46px; padding: 0 42px 0 14px; border: 1px solid #d5e0e8; border-radius: 11px; outline: 0; color: #26384d; background: #fff; }
+.project-toolbar select:focus { border-color: #258ca0; box-shadow: 0 0 0 4px rgba(37, 140, 160, 0.1); }
+.project-table .client-row { grid-template-columns: minmax(240px, 1fr) 140px 180px 110px; }
+.rate-value { color: #284057; font-variant-numeric: tabular-nums; }
+.project-modal form > label:not(:first-child) { margin-top: 20px; }
+.money-input { position: relative; }
+.money-input > span { position: absolute; top: 50%; left: 16px; z-index: 1; color: #68798b; transform: translateY(-50%); }
+.money-input input { padding-left: 34px; font-variant-numeric: tabular-nums; }
+.rate-choice { display: grid; gap: 10px; margin: 24px 0 0; padding: 0; border: 0; }
+.rate-choice legend { margin-bottom: 10px; color: #26384f; font-size: 0.88rem; font-weight: 750; }
+.rate-choice label { display: flex; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid #dce5eb; border-radius: 11px; cursor: pointer; }
+.rate-choice label:has(input:checked) { border-color: #5aa7ad; background: #f3fbfa; }
+.rate-choice input { width: auto; height: auto; margin-top: 3px; }
+.rate-choice span { display: grid; gap: 3px; }
+.rate-choice strong { color: #314459; font-size: 0.84rem; }
+.rate-choice small { color: #7b8998; line-height: 1.4; }
 
 @media (max-width: 760px) {
   .app-header { min-height: 68px; padding: 0 20px; }
@@ -291,4 +309,9 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .action-column { grid-column: 2; justify-self: end; }
   .client-row .action-column { grid-row: 1; }
   .client-row > div:nth-child(2) { grid-column: 1 / -1; }
+  .project-toolbar { align-items: stretch; flex-direction: column; }
+  .project-toolbar select { width: 100%; min-width: 0; }
+  .project-table .client-row { grid-template-columns: minmax(150px, 1fr) auto; }
+  .project-table .rate-value { grid-column: 1; }
+  .project-table .status-toggle { grid-column: 1 / -1; }
 }
