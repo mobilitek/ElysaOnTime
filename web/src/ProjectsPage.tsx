@@ -8,12 +8,12 @@ type RateMode = 'future_only' | 'update_unbilled';
 
 type Props = {
   language: Language; user: User; onLanguageChange: (language: Language) => void;
-  onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void;
+  onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void; onNavigateProfile: () => void;
 };
 
 const copy = {
   fr: {
-    workLog: 'Journal', clients: 'Mes clients', projects: 'Projets', logout: 'Se déconnecter',
+    workLog: 'Journal', clients: 'Mes clients', projects: 'Projets', profile: 'Profil', logout: 'Se déconnecter',
     title: 'Projets', subtitle: 'Organisez vos mandats et leurs taux horaires.', selectClient: 'Client',
     chooseClient: 'Choisir un client', noActiveClient: 'Aucun client actif.', manageClients: 'Gérer les clients',
     add: 'Ajouter un projet', name: 'Nom du projet', rate: 'Taux horaire', status: 'Statut', actions: 'Actions',
@@ -27,7 +27,7 @@ const copy = {
     updateHint: 'Le taux et la valeur des entrées non facturées seront recalculés.', toggle: 'Changer le statut de',
   },
   en: {
-    workLog: 'Work log', clients: 'My clients', projects: 'Projects', logout: 'Sign out',
+    workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile', logout: 'Sign out',
     title: 'Projects', subtitle: 'Organize your engagements and hourly rates.', selectClient: 'Client',
     chooseClient: 'Choose a client', noActiveClient: 'No active clients.', manageClients: 'Manage clients',
     add: 'Add project', name: 'Project name', rate: 'Hourly rate', status: 'Status', actions: 'Actions',
@@ -44,7 +44,7 @@ const copy = {
 
 const validRate = /^\d{1,10}(\.\d{1,2})?$/;
 
-export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients }: Props) {
+export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState('');
@@ -127,7 +127,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   return <main className="app-page">
     <header className="app-header">
       <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
-      <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button></nav>
+      <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button><button type="button" onClick={onNavigateProfile}>{text.profile}</button></nav>
       <div className="header-actions"><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div></div>
     </header>
     <section className="content-shell">

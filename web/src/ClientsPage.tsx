@@ -11,6 +11,7 @@ type Props = {
   onLogout: () => Promise<void>;
   onNavigateWorkLog: () => void;
   onNavigateProjects: () => void;
+  onNavigateProfile: () => void;
 };
 
 const copy = {
@@ -38,7 +39,7 @@ const copy = {
   },
 } as const;
 
-export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects }: Props) {
+export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,6 +119,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
           <button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button>
           <button type="button" className="active">{text.clients}</button>
           <button type="button" onClick={onNavigateProjects}>{text.projects}</button>
+          <button type="button" onClick={onNavigateProfile}>{text.profile}</button>
         </nav>
         <div className="header-actions">
           <div className="language-switch compact">

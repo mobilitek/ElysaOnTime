@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { ClientsPage } from './ClientsPage';
 import { ProjectsPage } from './ProjectsPage';
 import { WorkLogPage } from './WorkLogPage';
+import { ProfilePage } from './ProfilePage';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string };
@@ -50,7 +51,7 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState<'worklog' | 'clients' | 'projects'>('worklog');
+  const [page, setPage] = useState<'worklog' | 'clients' | 'projects' | 'profile'>('worklog');
   const text = copy[language];
 
   useEffect(() => {
@@ -104,9 +105,10 @@ export function App() {
   };
 
   if (!isCheckingSession && user) {
-    if (page === 'clients') return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} />;
-    if (page === 'projects') return <ProjectsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} />;
-    return <WorkLogPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
+    if (page === 'clients') return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'projects') return <ProjectsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'profile') return <ProfilePage language={language} user={user} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
+    return <WorkLogPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
   }
 
   return (

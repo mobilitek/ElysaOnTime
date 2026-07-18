@@ -41,17 +41,24 @@ export class DuplicateEmailError extends Error {
   }
 }
 
+export class InvalidCurrentPasswordError extends Error {
+  constructor() { super('Current password is invalid'); this.name = 'InvalidCurrentPasswordError'; }
+}
+
+export class UserNotFoundError extends Error {
+  constructor() { super('User not found'); this.name = 'UserNotFoundError'; }
+}
+
+const assertUniqueEmail = async (email: string, excludedUserId?: string) => {
+  const conditions = [sql`lower(trim(${users.email})) = ${email}`];
+  if (excludedUserId) conditions.push(sql`${users.id} <> ${excludedUserId}`);
+  const [existing] = await database.select({ id: users.id }).from(users).where(and(...conditions)).limit(1);
+  if (existing) throw new DuplicateEmailError();
+};
+
 export const createUser = async (input: CreateUserInput): Promise<AuthenticatedUser> => {
   const email = normalizeEmail(input.email);
-  const existingUser = await database
-    .select({ id: users.id })
-    .from(users)
-    .where(sql`lower(trim(${users.email})) = ${email}`)
-    .limit(1);
-
-  if (existingUser.length > 0) {
-    throw new DuplicateEmailError();
-  }
+  await assertUniqueEmail(email);
 
   const passwordHash = await Bun.password.hash(input.password, {
     algorithm: 'argon2id',
@@ -77,6 +84,22 @@ export const createUser = async (input: CreateUserInput): Promise<AuthenticatedU
   }
 
   return user;
+};
+
+export const updateProfile = async (userId: string, input: { email: string; firstName: string; lastName: string }): Promise<AuthenticatedUser> => {
+  const email = normalizeEmail(input.email); const firstName = input.firstName.trim(); const lastName = input.lastName.trim();
+  await assertUniqueEmail(email, userId);
+  const [user] = await database.update(users).set({ email, firstName, lastName, updatedAt: new Date() }).where(eq(users.id, userId)).returning({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName });
+  if (!user) throw new UserNotFoundError();
+  return user;
+};
+
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<void> => {
+  const [user] = await database.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new UserNotFoundError();
+  if (!(await Bun.password.verify(currentPassword, user.passwordHash))) throw new InvalidCurrentPasswordError();
+  const passwordHash = await Bun.password.hash(newPassword, { algorithm: 'argon2id' });
+  await database.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
 };
 
 export const authenticate = async (

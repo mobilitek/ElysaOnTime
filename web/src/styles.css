@@ -351,9 +351,18 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .entry-modal { width: min(760px, calc(100vw - 32px)); }
 .entry-modal form { display: grid; gap: 16px; }
 .entry-modal textarea { resize: vertical; min-height: 180px; }
+.profile-shell { max-width: 1100px; }
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.profile-card { padding: 28px; border: 1px solid var(--line); border-radius: 18px; background: white; }
+.profile-card h2 { margin: 0 0 24px; }
+.profile-card form { display: grid; gap: 17px; }
+.profile-card label { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.profile-card input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px; color: var(--ink); font: inherit; text-transform: none; letter-spacing: normal; }
+.success-message { margin: 0; padding: 10px 12px; border-radius: 8px; background: #eaf8ef; color: #18733b; font-size: 13px; }
 
 @media (max-width: 1050px) {
   .journal-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
   .preset-group { grid-column: 1 / -1; }
   .confidential-switch { display: none; }
+  .profile-grid { grid-template-columns: 1fr; }
 }

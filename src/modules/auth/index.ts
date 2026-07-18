@@ -5,7 +5,7 @@ import {
   SESSION_COOKIE_NAME,
 } from './constants';
 import { getSessionToken } from './cookie';
-import { authenticate, deleteSession, getUserBySessionToken } from './service';
+import { authenticate, changePassword, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, updateProfile } from './service';
 
 const credentialsSchema = t.Object({
   email: t.String({ format: 'email', maxLength: 320 }),
@@ -64,4 +64,16 @@ export const auth = new Elysia({ prefix: '/api/auth' })
     }
 
     return { user };
-  });
+  })
+  .patch('/profile', async ({ body, cookie, status }) => {
+    const user = await getUserBySessionToken(getSessionToken(cookie[SESSION_COOKIE_NAME].value));
+    if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    try { return { user: await updateProfile(user.id, body) }; }
+    catch (error) { if (error instanceof DuplicateEmailError) return status(409, { error: 'EMAIL_EXISTS' }); throw error; }
+  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }) }) })
+  .post('/change-password', async ({ body, cookie, status }) => {
+    const user = await getUserBySessionToken(getSessionToken(cookie[SESSION_COOKIE_NAME].value));
+    if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    try { await changePassword(user.id, body.currentPassword, body.newPassword); return { success: true }; }
+    catch (error) { if (error instanceof InvalidCurrentPasswordError) return status(422, { error: 'INVALID_CURRENT_PASSWORD' }); throw error; }
+  }, { body: t.Object({ currentPassword: t.String({ minLength: 8, maxLength: 200 }), newPassword: t.String({ minLength: 8, maxLength: 200 }) }) });

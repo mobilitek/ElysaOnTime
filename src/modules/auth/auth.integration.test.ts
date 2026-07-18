@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === '1';
 const testEmail = `auth-${crypto.randomUUID()}@example.com`;
 let userId: string | undefined;
+let duplicateUserId: string | undefined;
 
 const { createApp } = await import('../../app');
 const { database } = await import('../../database');
@@ -19,12 +20,14 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
       lastName: 'Test',
     });
     userId = user.id;
+    duplicateUserId = (await createUser({ email: `duplicate-${crypto.randomUUID()}@example.com`, password: 'duplicate-password', firstName: 'Duplicate', lastName: 'User' })).id;
   });
 
   afterAll(async () => {
     if (userId) {
       await database.delete(users).where(eq(users.id, userId));
     }
+    if (duplicateUserId) await database.delete(users).where(eq(users.id, duplicateUserId));
   });
 
   test('rejects invalid credentials', async () => {
@@ -98,5 +101,24 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
       }),
     );
     expect(expiredSessionResponse.status).toBe(401);
+  });
+
+  test('updates the profile and securely changes the password', async () => {
+    const app = createApp();
+    const login = await app.handle(new Request('http://localhost/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: testEmail, password: 'integration-password' }) }));
+    const cookie = login.headers.get('set-cookie')?.split(';', 1)[0]; if (!cookie) throw new Error('Expected cookie');
+    const duplicate = await database.select({ email: users.email }).from(users).where(eq(users.id, duplicateUserId!)).limit(1);
+    const conflict = await app.handle(new Request('http://localhost/api/auth/profile', { method: 'PATCH', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ firstName: 'Updated', lastName: 'Person', email: duplicate[0]!.email.toUpperCase() }) }));
+    expect(conflict.status).toBe(409);
+    const updatedEmail = `updated-${crypto.randomUUID()}@example.com`;
+    const update = await app.handle(new Request('http://localhost/api/auth/profile', { method: 'PATCH', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ firstName: ' Updated ', lastName: ' Person ', email: updatedEmail.toUpperCase() }) }));
+    expect(update.status).toBe(200); expect((await update.json()) as object).toMatchObject({ user: { email: updatedEmail, firstName: 'Updated', lastName: 'Person' } });
+    const invalid = await app.handle(new Request('http://localhost/api/auth/change-password', { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ currentPassword: 'incorrect-password', newPassword: 'new-integration-password' }) }));
+    expect(invalid.status).toBe(422);
+    const changed = await app.handle(new Request('http://localhost/api/auth/change-password', { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ currentPassword: 'integration-password', newPassword: 'new-integration-password' }) }));
+    expect(changed.status).toBe(200);
+    const oldLogin = await app.handle(new Request('http://localhost/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: updatedEmail, password: 'integration-password' }) }));
+    const newLogin = await app.handle(new Request('http://localhost/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: updatedEmail, password: 'new-integration-password' }) }));
+    expect(oldLogin.status).toBe(401); expect(newLogin.status).toBe(200);
   });
 });
