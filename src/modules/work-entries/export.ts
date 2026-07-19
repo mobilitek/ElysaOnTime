@@ -14,6 +14,10 @@ const labels = {
 const excelDate = (value: string) => new Date(`${value}T12:00:00Z`);
 const filenamePart = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 const filenameDate = (value: string) => { const [year, month, day] = value.split('-'); return `${day}-${month}-${year}`; };
+export const exportDescription = (description: string) => description
+  .split(/\r?\n/)
+  .filter((line) => !line.trimStart().startsWith('---'))
+  .join('\n');
 
 export const exportWorkEntries = async (user: ExportUser, options: ExportOptions) => {
   const conditions = [eq(workEntries.userId, user.id), eq(clients.userId, user.id), eq(clients.isActive, true), eq(projects.isActive, true), gte(workEntries.workDate, options.from), lte(workEntries.workDate, options.to)];
@@ -34,7 +38,7 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (!options.confidential) columns.push({ header: text.rate, key: 'rate', width: 14 }, { header: text.value, key: 'value', width: 16 });
   sheet.columns = columns;
   for (const row of rows) {
-    const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description: row.description, hours: row.durationMinutes / 1440 };
+    const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description: exportDescription(row.description), hours: row.durationMinutes / 1440 };
     if (showClient) value.client = row.clientName; if (showProject) value.project = row.projectName;
     if (!options.confidential) { value.rate = Number(row.hourlyRate); value.value = Number(row.amount); }
     sheet.addRow(value);

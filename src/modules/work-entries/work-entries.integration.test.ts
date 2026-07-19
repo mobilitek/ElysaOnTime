@@ -12,6 +12,7 @@ const { clients, projects, users, workEntries } = await import('../../db/schema'
 const { authenticate, createUser } = await import('../auth/service');
 const { createClient } = await import('../clients/service');
 const { createProject } = await import('../projects/service');
+const { exportDescription } = await import('./export');
 
 const request = (path: string, method = 'GET', body?: unknown) => createApp().handle(new Request(`http://localhost${path}`, { method, headers: { cookie, ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }));
 
@@ -42,6 +43,11 @@ describe.skipIf(!run)('work entries integration', () => {
   test('rejects inverted date ranges for lists and exports', async () => {
     expect((await request('/api/work-entries?from=2026-07-31&to=2026-07-01&includeDeleted=false&page=1&pageSize=50&sortBy=workDate&sortDirection=desc')).status).toBe(422);
     expect((await request('/api/work-entries/export?from=2026-07-31&to=2026-07-01&includeDeleted=false&confidential=true&language=fr')).status).toBe(422);
+  });
+
+  test('removes lines beginning with three hyphens from exported descriptions', () => {
+    expect(exportDescription('Visible\n--- Private note\n  --- Also private\n-- Still visible\nVisible again'))
+      .toBe('Visible\n-- Still visible\nVisible again');
   });
 
   test('toggles billed and deleted state, and filters deleted entries', async () => {

@@ -54,6 +54,30 @@ bun run db:studio
 bun run user:create
 ```
 
+### Import historique Excel
+
+La commande d'import historique attend les colonnes `Client`, `Project`, `Day`,
+`Date`, `Rate`, `Value`, `Description`, `Hours` et `Billed`.
+
+Validez toujours le fichier sans écriture en premier :
+
+```bash
+bun run data:import-legacy -- --file /chemin/export.xlsx --email utilisateur@example.com --dry-run
+```
+
+L'import réel exige une confirmation explicite dans la commande. Il remplace
+uniquement les clients, projets et entrées de l'utilisateur ciblé; les comptes et
+sessions ne sont pas supprimés.
+
+```bash
+bun run data:import-legacy -- --file /chemin/export.xlsx --email utilisateur@example.com --replace-user-data
+```
+
+L'opération est transactionnelle. Les clients et projets importés sont actifs,
+les entrées ne sont pas supprimées, et leur statut facturé provient du fichier.
+Les doublons strictement identiques sont distingués en ajoutant `-1`, `-2`, etc.
+à leur description.
+
 Le schéma Drizzle se trouve dans `src/db/schema.ts`. Les migrations SQL générées
 et versionnées se trouvent dans `drizzle/`.
 

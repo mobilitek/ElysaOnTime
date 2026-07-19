@@ -344,7 +344,10 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .journal-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .journal-table th { padding: 11px 10px; background: #f7f9fc; color: var(--ink-soft); text-align: left; white-space: nowrap; cursor: pointer; }
 .journal-table td { padding: 9px 10px; border-top: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
-.journal-table .description-cell { min-width: 300px; max-width: 520px; white-space: pre-wrap; }
+.journal-table .description-cell { width: 100%; min-width: 300px; max-width: 520px; }
+.description-preview { display: block; width: 100%; max-width: 520px; overflow: hidden; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.description-preview:focus-visible { border-radius: 3px; outline: 2px solid var(--teal); outline-offset: 3px; }
+.description-tooltip { position: fixed; z-index: 1000; width: max-content; max-width: min(540px, calc(100vw - 24px)); max-height: min(420px, calc(100vh - 24px)); overflow: auto; border: 1px solid #b8c6d3; border-radius: 10px; padding: 12px 14px; background: #17243a; box-shadow: 0 14px 35px rgba(23, 36, 58, .24); color: white; font-size: 13px; line-height: 1.45; white-space: pre-wrap; pointer-events: none; }
 .journal-table tr.deleted-entry { opacity: .55; text-decoration: line-through; background: #fff3f2; }
 .row-actions { display: flex; gap: 5px; }
 .row-actions button { border: 1px solid var(--line); border-radius: 6px; background: white; padding: 5px 7px; cursor: pointer; }

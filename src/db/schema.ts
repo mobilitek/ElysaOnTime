@@ -128,11 +128,9 @@ export const workEntries = pgTable(
     ),
     check(
       'work_entries_duration_valid',
-      sql`${table.durationMinutes} >= 15 AND ${table.durationMinutes} % 15 = 0`,
+      sql`${table.durationMinutes} >= 0`,
     ),
     check('work_entries_description_not_blank', sql`length(trim(${table.description})) > 0`),
-    check('work_entries_hourly_rate_non_negative', sql`${table.hourlyRate} >= 0`),
-    check('work_entries_amount_non_negative', sql`${table.amount} >= 0`),
   ],
 );
 
