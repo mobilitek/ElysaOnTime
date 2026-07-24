@@ -2,7 +2,7 @@
 
 set -eu
 
-BRANCH=prod
+BRANCH=main
 COMPOSE_FILE=compose.application.yml
 CONTAINER_NAME=ontime-app
 HEALTH_URL=http://127.0.0.1:3080/health
