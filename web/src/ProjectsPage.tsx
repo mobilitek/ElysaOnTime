@@ -60,6 +60,8 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   const [confidential, setConfidential] = useState(document.cookie.includes('ontime_confidential=true'));
 
   useEffect(() => {
+    // Seuls les clients actifs sont proposés : un client inactif ne permet
+    // ni la consultation ni la modification de ses projets.
     const load = async () => {
       try {
         const response = await fetch('/api/clients', { credentials: 'include' });
@@ -72,6 +74,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   }, []);
 
   useEffect(() => {
+    // Changer de client recharge son espace de projets et invalide l'ancienne liste.
     if (!clientId) { setProjects([]); setIsLoading(false); return; }
     const load = async () => {
       setIsLoading(true);
@@ -98,6 +101,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
     try {
       const response = await fetch(editing ? `/api/projects/${editing.id}` : '/api/projects', {
         method: editing ? 'PATCH' : 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+        // Le mode d'application est envoyé seulement si le taux change réellement.
         body: JSON.stringify(editing
           ? { name: name.trim(), hourlyRate: Number(rate).toFixed(2), ...(rateHasChanged ? { rateUpdateMode: rateMode } : {}) }
           : { clientId, name: name.trim(), hourlyRate: Number(rate).toFixed(2) }),
@@ -114,6 +118,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   };
 
   const toggle = async (project: Project) => {
+    // Un projet inactif disparaît du journal, mais reste visible et réactivable ici.
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH', credentials: 'include', headers: { 'content-type': 'application/json' },

@@ -15,6 +15,7 @@ const REQUIRED_HEADERS = [
   'Billed',
 ] as const;
 
+/** Représentation normalisée d'une ligne provenant de l'ancienne application. */
 export type LegacyEntry = {
   sourceRow: number;
   clientName: string;
@@ -60,6 +61,8 @@ const optionsFrom = (args: string[]): ImportOptions => {
 };
 
 const textValue = (value: ExcelJS.CellValue): string => {
+  // ExcelJS expose plusieurs formes de cellules (texte enrichi, formule, etc.).
+  // Cette fonction les ramène toutes à une chaîne exploitable.
   if (value === null || value === undefined) return '';
   if (typeof value === 'object') {
     if ('text' in value) return String(value.text);
@@ -76,6 +79,8 @@ const numberValue = (value: ExcelJS.CellValue, label: string, row: number): numb
 };
 
 const durationMinutesValue = (value: ExcelJS.CellValue, row: number): number => {
+  // Excel stocke habituellement les heures comme une fraction de journée.
+  // Le cas Date couvre aussi les classeurs réenregistrés par certains logiciels.
   if (value instanceof Date) {
     return value.getUTCHours() * 60 + value.getUTCMinutes() + Math.round(value.getUTCSeconds() / 60);
   }
@@ -83,6 +88,8 @@ const durationMinutesValue = (value: ExcelJS.CellValue, row: number): number => 
 };
 
 const excelDate = (value: ExcelJS.CellValue, row: number): string => {
+  // Accepter les trois représentations observées : Date JavaScript, numéro de
+  // série Excel ou texte ISO/français.
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   if (typeof value === 'number') {
     const date = new Date(Date.UTC(1899, 11, 30) + Math.trunc(value) * 86_400_000);
@@ -101,6 +108,7 @@ const excelDate = (value: ExcelJS.CellValue, row: number): string => {
 };
 
 const headerMap = (worksheet: ExcelJS.Worksheet): Map<string, number> => {
+  // Les noms de colonnes, et non leur position, définissent le format attendu.
   const headers = new Map<string, number>();
   worksheet.getRow(1).eachCell((cell, column) => headers.set(textValue(cell.value).trim(), column));
   const missing = REQUIRED_HEADERS.filter((header) => !headers.has(header));
@@ -109,6 +117,8 @@ const headerMap = (worksheet: ExcelJS.Worksheet): Map<string, number> => {
 };
 
 const duplicateSignature = (entry: LegacyEntry) =>
+  // Une signature inclut tous les champs métier afin de distinguer un vrai
+  // doublon de deux entrées simplement similaires.
   [
     entry.clientName,
     entry.projectName,
@@ -132,6 +142,8 @@ const entriesFromWorkbook = (workbook: ExcelJS.Workbook): LegacyEntry[] => {
     const clientName = textValue(get('Client')).trim();
     const projectName = textValue(get('Project')).trim();
     const description = textValue(get('Description')).trim();
+    // Les lignes entièrement vides sont ignorées; une ligne partielle est une
+    // erreur afin de ne jamais importer silencieusement des données incomplètes.
     if (!clientName && !projectName && !description) continue;
     if (!clientName || !projectName || !description) {
       throw new Error(`Client, project and description are required on Excel row ${rowNumber}`);
@@ -141,6 +153,8 @@ const entriesFromWorkbook = (workbook: ExcelJS.Workbook): LegacyEntry[] => {
     const hourlyRate = numberValue(get('Rate'), 'rate', rowNumber);
     const amount = numberValue(get('Value'), 'value', rowNumber);
     const expectedAmount = Math.round((durationMinutes / 60) * hourlyRate * 100) / 100;
+    // Le montant historique doit correspondre mathématiquement au taux et aux
+    // heures. Cette validation détecte les colonnes décalées ou corrompues.
     if (Math.abs(expectedAmount - amount) > 0.001) {
       throw new Error(`Value does not match duration and rate on Excel row ${rowNumber}`);
     }
@@ -164,6 +178,8 @@ const entriesFromWorkbook = (workbook: ExcelJS.Workbook): LegacyEntry[] => {
   }
   for (const group of duplicateGroups.values()) {
     if (group.length < 2) continue;
+    // L'ancienne BD refusait deux descriptions strictement identiques. Le suffixe
+    // demandé (-1, -2...) rend chaque doublon explicite et reproductible.
     group.forEach((entry, index) => {
       entry.description = `${entry.description}-${index + 1}`;
     });
@@ -187,6 +203,7 @@ const projectKey = (clientName: string, projectName: string) =>
   `${clientName.trim().toLocaleLowerCase('fr-CA')}\u001f${projectName.trim().toLocaleLowerCase('fr-CA')}`;
 
 export const summarizeLegacyEntries = (entries: LegacyEntry[]) => {
+  // Ce bilan est utilisé avant et après l'import pour vérifier la réconciliation.
   const clientNames = new Set(entries.map((entry) => entry.clientName.toLocaleLowerCase('fr-CA')));
   const projectNames = new Set(entries.map((entry) => projectKey(entry.clientName, entry.projectName)));
   return {
@@ -214,12 +231,15 @@ const run = async () => {
   const user = matchingUsers[0]!;
 
   console.log(JSON.stringify({ mode: options.dryRun ? 'dry-run' : 'import', user, summary }, null, 2));
+  // Le mode dry-run analyse le fichier et résout l'utilisateur sans écrire.
   if (options.dryRun) return;
   if (!options.replaceUserData) {
     throw new Error('Import requires --replace-user-data to avoid mixing legacy and existing data');
   }
 
   await database.transaction(async (transaction) => {
+    // L'import CLI suit la même règle que l'interface : remplacement complet
+    // des données métier du compte, sans toucher au compte lui-même.
     const existingClients = await transaction
       .select({ id: clients.id })
       .from(clients)
@@ -287,6 +307,8 @@ const run = async () => {
     );
   });
 
+  // Relire les agrégats depuis PostgreSQL garantit que toutes les valeurs ont
+  // été insérées exactement comme prévu.
   const [actual] = await database
     .select({
       entries: sql<number>`count(*)::int`,

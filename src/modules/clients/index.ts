@@ -15,6 +15,7 @@ const getAuthenticatedUser = async (cookieValue: unknown) =>
 
 const clientNameSchema = t.String({ minLength: 1, maxLength: 200 });
 
+/** Routes CRUD des clients appartenant exclusivement à l'utilisateur courant. */
 export const clientRoutes = new Elysia({ prefix: '/api/clients' })
   .get('/', async ({ cookie, status }) => {
     const user = await getAuthenticatedUser(cookie[SESSION_COOKIE_NAME].value);

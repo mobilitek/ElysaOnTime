@@ -19,6 +19,7 @@ const handleKnownError = (error: unknown, status: (code: number, body: unknown) 
   throw error;
 };
 
+/** Routes des projets, toujours résolues à travers un client appartenant au compte. */
 export const projectRoutes = new Elysia({ prefix: '/api/projects' })
   .get('/', async ({ cookie, query, status }) => {
     const user = await getUser(cookie[SESSION_COOKIE_NAME].value);

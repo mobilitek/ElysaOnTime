@@ -1,3 +1,4 @@
+# Étape de construction : installe les dépendances et compile l'interface React.
 FROM oven/bun:1.3.14-alpine AS build
 
 WORKDIR /app
@@ -12,6 +13,8 @@ COPY drizzle ./drizzle
 
 RUN bun run build:web
 
+# Étape d'exécution : ne conserve que les éléments nécessaires à l'API,
+# aux migrations Drizzle et aux fichiers statiques compilés.
 FROM oven/bun:1.3.14-alpine AS runtime
 
 WORKDIR /app
@@ -31,4 +34,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD bun -e "const r=await fetch('http://127.0.0.1:'+(process.env.PORT??'3000')+'/health');if(!r.ok)process.exit(1)"
 
+# Attendre PostgreSQL, appliquer les migrations idempotentes, puis remplacer
+# le shell par le processus principal afin que Docker gère correctement ses signaux.
 CMD ["sh", "-c", "bun run db:wait && bun run db:migrate && exec bun run start"]

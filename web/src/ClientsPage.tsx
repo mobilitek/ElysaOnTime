@@ -50,6 +50,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
   const [error, setError] = useState<string | null>(null);
 
   const loadClients = async () => {
+    // La page de gestion conserve les clients inactifs pour permettre leur réactivation.
     setIsLoading(true);
     try {
       const response = await fetch('/api/clients', { credentials: 'include' });
@@ -73,6 +74,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
   const closeForm = () => { setIsFormOpen(false); setEditingClient(null); setError(null); };
 
   const saveClient = async (event: FormEvent<HTMLFormElement>) => {
+    // Le même formulaire sert à la création et à l'édition; seule la méthode HTTP change.
     event.preventDefault();
     const normalizedName = name.trim();
     if (!normalizedName) { setError(text.required); return; }
@@ -97,6 +99,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
   };
 
   const toggleClient = async (client: Client) => {
+    // Désactiver un client masque indirectement tous ses projets dans le journal.
     setError(null);
     try {
       const response = await fetch(`/api/clients/${client.id}`, {

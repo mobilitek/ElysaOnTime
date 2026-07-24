@@ -13,6 +13,7 @@ type BackupAnalysis = { digest: string; clients: number; projects: number; entri
 const pad = (value: number) => String(value).padStart(2, '0');
 const iso = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const period = (preset: Preset, anchor: Date) => {
+  // Les semaines OnTime vont du samedi au vendredi, comme dans l'application historique.
   const from = new Date(anchor); const to = new Date(anchor);
   if (preset === 'week') { const offset = (anchor.getDay() + 1) % 7; from.setDate(anchor.getDate() - offset); to.setTime(from.getTime()); to.setDate(from.getDate() + 6); }
   if (preset === 'month') { from.setDate(1); to.setMonth(anchor.getMonth() + 1, 0); }
@@ -22,6 +23,8 @@ const period = (preset: Preset, anchor: Date) => {
 const formatDate = (value: string) => { const [y, m, d] = value.split('-'); return `${d}/${m}/${y}`; };
 const formatDuration = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
 export const possibleWorkingMinutes = (from: string, to: string) => {
+  // Capacité théorique : huit heures du lundi au vendredi; les jours fériés
+  // restent volontairement inclus dans cette première version.
   const current = new Date(`${from}T00:00:00Z`);
   const last = new Date(`${to}T00:00:00Z`);
   let weekdays = 0;
@@ -41,6 +44,7 @@ const presetCookie = (): Preset => {
   return ['day', 'week', 'month', 'year', 'custom'].includes(value) ? value as Preset : 'month';
 };
 const initialPeriod = (anchor: Date) => {
+  // Restaurer le dernier préréglage et, si nécessaire, ses dates personnalisées.
   const preset = presetCookie();
   if (preset !== 'custom') return { preset, ...period(preset, anchor) };
   const from = cookieValue('ontime_period_from');
@@ -51,6 +55,7 @@ const initialPeriod = (anchor: Date) => {
   return { preset: 'month' as const, ...period('month', anchor) };
 };
 export const shiftPeriod = (preset: Exclude<Preset, 'custom'>, from: string, direction: -1 | 1) => {
+  // Déplacer un mois ou une année civile plutôt qu'un nombre fixe de jours.
   const anchor = new Date(`${from}T12:00:00`);
   if (preset === 'day') anchor.setDate(anchor.getDate() + direction);
   if (preset === 'week') anchor.setDate(anchor.getDate() + direction * 7);
@@ -63,6 +68,7 @@ function DescriptionPreview({ description }: { description: string }) {
   const [tooltip, setTooltip] = useState<{ left: number; top: number } | null>(null);
   const [pinned, setPinned] = useState(false);
   const show = (element: HTMLElement) => {
+    // Un positionnement fixe garde l'infobulle visible dans le tableau défilant.
     const bounds = element.getBoundingClientRect();
     setTooltip({
       left: Math.max(12, Math.min(bounds.left, window.innerWidth - 552)),
@@ -113,9 +119,13 @@ export function WorkLogPage(props: Props) {
       : 0;
   const possibleAmount = clientId ? (possibleMinutes / 60) * weightedRate : null;
 
+  // Charger les clients actifs et nettoyer un filtre mémorisé devenu invalide.
   useEffect(() => { void fetch('/api/clients', { credentials: 'include' }).then((response) => response.json()).then((data: { clients: Client[] }) => { const active = data.clients.filter((item) => item.isActive); setClients(active); if (clientId && !active.some((item) => item.id === clientId)) { setClientId(''); setProjectId(''); saveCookie('ontime_client_filter', ''); saveCookie('ontime_project_filter', ''); } }).catch(() => setError(text.error)); }, []);
+  // Les projets sont chargés uniquement pour le client actif sélectionné.
   useEffect(() => { if (!clientId) { setProjects([]); setProjectId(''); return; } void fetch(`/api/projects?clientId=${clientId}`, { credentials: 'include' }).then((response) => response.json()).then((data: { projects: Project[] }) => { const active = data.projects.filter((item) => item.isActive); setProjects(active); const saved = cookieValue('ontime_project_filter'); const next = active.some((item) => item.id === saved) ? saved : ''; setProjectId(next); if (!next) saveCookie('ontime_project_filter', ''); }).catch(() => setError(text.error)); }, [clientId]);
   useEffect(() => {
+    // Toute modification d'un filtre, tri ou page recharge les entrées et remet
+    // la sélection multiple à zéro.
     if (from > to) { setLoadingEntries(false); setError(language === 'fr' ? 'La date de début doit précéder ou égaler la date de fin.' : 'The start date must be before or equal to the end date.'); setEntries([]); setSummary({ itemCount: 0, totalMinutes: 0, totalAmount: '0.00' }); return; }
     setLoadingEntries(true); setError('');
     const params = new URLSearchParams({ from, to, includeDeleted: String(includeDeleted), page: String(page), pageSize: String(pageSize), sortBy, sortDirection });
@@ -131,6 +141,7 @@ export function WorkLogPage(props: Props) {
   const minutes = () => { const match = /^(\d+):([0-5]\d)$/.exec(time); return match ? Number(match[1]) * 60 + Number(match[2]) : 0; };
   const save = async (event: FormEvent) => { event.preventDefault(); const durationMinutes = minutes(); if (!description.trim() || durationMinutes < 15 || durationMinutes % 15) { setError(text.required); return; } const response = await fetch(editing ? `/api/work-entries/${editing.id}` : '/api/work-entries', { method: editing ? 'PATCH' : 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...(!editing ? { projectId } : {}), workDate, durationMinutes, description: description.trim() }) }); if (!response.ok) { setError(text.error); return; } setFormOpen(false); setReload((current) => current + 1); };
   const action = async (path: string, body: unknown) => { if (actionBusy) return; setActionBusy(true); try { const response = await fetch(path, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (!response.ok) setError(text.error); else setReload((current) => current + 1); } finally { setActionBusy(false); } };
+  // Télécharger le Blob avec le nom de fichier calculé par le backend.
   const exportExcel = async () => { if (exporting || from > to) return; setExporting(true); try { const params = new URLSearchParams({ from, to, includeDeleted: String(includeDeleted), confidential: String(confidential), language }); if (clientId) params.set('clientId', clientId); if (projectId) params.set('projectId', projectId); const response = await fetch(`/api/work-entries/export?${params}`, { credentials: 'include' }); if (!response.ok) { setError(text.error); return; } const blob = await response.blob(); const disposition = response.headers.get('content-disposition') ?? ''; const name = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'OnTime.xlsx'; const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name; link.click(); URL.revokeObjectURL(link.href); } finally { setExporting(false); } };
   const downloadBackup = async () => {
     if (backupBusy) return;
@@ -144,6 +155,7 @@ export function WorkLogPage(props: Props) {
   };
   const openRestore = () => { setRestoreFile(null); setRestoreAnalysis(null); setRestoreConfirmation(''); setRestoreError(''); setRestoreOpen(true); };
   const analyzeRestore = async () => {
+    // L'analyse n'écrit rien : elle prépare le bilan et le condensat à confirmer.
     if (!restoreFile || restoreBusy) return;
     setRestoreBusy(true); setRestoreError(''); setRestoreAnalysis(null);
     try {
@@ -162,6 +174,7 @@ export function WorkLogPage(props: Props) {
       const response = await fetch('/api/backup/restore', { method: 'POST', credentials: 'include', body });
       const payload = await response.json() as { detail?: string };
       if (!response.ok) { setRestoreError(payload.detail ?? text.error); return; }
+      // Les identifiants mémorisés n'existent plus après le remplacement des données.
       saveCookie('ontime_client_filter', '');
       saveCookie('ontime_project_filter', '');
       setClientId('');
@@ -183,6 +196,8 @@ export function WorkLogPage(props: Props) {
       setReload((current) => current + 1);
     } catch { setRestoreError(text.error); } finally { setRestoreBusy(false); }
   };
+  // Tous les clients : afficher client et projet. Un client : afficher le projet.
+  // Un projet précis : masquer les deux colonnes déjà connues par les filtres.
   const columns = !clientId ? 'both' : !projectId ? 'project' : 'none';
 
   return <main className="app-page"><header className="app-header"><div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div><nav className="app-nav"><button className="active">{text.journal}</button><button onClick={onNavigateClients}>{text.clients}</button><button onClick={onNavigateProjects}>{text.projects}</button><button onClick={onNavigateProfile}>{language === 'fr' ? 'Profil' : 'Profile'}</button></nav><div className="header-actions"><label className="confidential-switch"><input type="checkbox" checked={confidential} onChange={(event) => { setConfidential(event.target.checked); document.cookie = `ontime_confidential=${event.target.checked}; Max-Age=31536000; Path=/; SameSite=Lax`; }} />{text.confidential}</label><div className="language-switch compact">{(['fr', 'en'] as const).map((value) => <button key={value} className={language === value ? 'active' : ''} onClick={() => onLanguageChange(value)}>{value.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button onClick={() => void onLogout()}>{text.logout}</button></div></div></div></header>

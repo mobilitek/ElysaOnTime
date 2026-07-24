@@ -16,6 +16,8 @@ export const waitForDatabase = async (
   let attempt = 0;
   let lastError: unknown;
 
+  // PostgreSQL peut démarrer moins vite que l'application après un redémarrage
+  // du NAS. Réessayer évite une boucle de redémarrage inutile du conteneur.
   while (Date.now() < deadline) {
     attempt += 1;
     try {
@@ -38,6 +40,7 @@ export const waitForDatabase = async (
 };
 
 const run = async () => {
+  // Une seule connexion courte suffit pour le contrôle préalable aux migrations.
   const sql = postgres(config.databaseUrl, {
     max: 1,
     connect_timeout: 3,

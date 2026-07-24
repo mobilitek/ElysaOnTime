@@ -28,11 +28,15 @@ export class RateUpdateModeRequiredError extends Error {
 
 const normalizeName = (name: string) => name.trim();
 const normalizeRate = (rate: string): string => {
+  // Le taux courant d'un projet ne peut pas être négatif. Les valeurs négatives
+  // historiques demeurent permises uniquement sur les anciennes entrées.
   if (!/^\d{1,10}(\.\d{1,2})?$/.test(rate)) throw new Error('Hourly rate must be a non-negative amount with two decimals');
   return Number(rate).toFixed(2);
 };
 
 const requireActiveClient = async (userId: string, clientId: string): Promise<void> => {
+  // Un client inactif rend tous ses projets indisponibles, même si ceux-ci sont
+  // encore marqués actifs dans la base de données.
   const [client] = await database.select({ id: clients.id }).from(clients)
     .where(and(eq(clients.id, clientId), eq(clients.userId, userId), eq(clients.isActive, true))).limit(1);
   if (!client) throw new ClientUnavailableError();
@@ -52,6 +56,8 @@ const projectSelection = {
 };
 
 export const listProjects = async (userId: string, clientId: string): Promise<ProjectRecord[]> => {
+  // L'écran de gestion reçoit les projets actifs et inactifs du client actif
+  // afin de pouvoir les réactiver au besoin.
   await requireActiveClient(userId, clientId);
   return database.select(projectSelection).from(projects)
     .innerJoin(clients, eq(projects.clientId, clients.id))
@@ -91,8 +97,11 @@ export const updateProject = async (
 
   const hourlyRate = input.hourlyRate === undefined ? existing.hourlyRate : normalizeRate(input.hourlyRate);
   const rateChanged = hourlyRate !== Number(existing.hourlyRate).toFixed(2);
+  // Une modification de taux exige une décision explicite : préserver tout
+  // l'historique ou recalculer seulement les entrées non facturées.
   if (rateChanged && !input.rateUpdateMode) throw new RateUpdateModeRequiredError();
 
+  // Le projet et les éventuelles entrées recalculées doivent changer ensemble.
   await database.transaction(async (transaction) => {
     await transaction.update(projects).set({
       name, hourlyRate,
@@ -101,6 +110,7 @@ export const updateProject = async (
     }).where(eq(projects.id, projectId));
 
     if (rateChanged && input.rateUpdateMode === 'update_unbilled') {
+      // Les entrées facturées conservent toujours leur taux historique.
       await transaction.update(workEntries).set({
         hourlyRate,
         amount: sql`round((${workEntries.durationMinutes}::numeric / 60) * ${hourlyRate}::numeric, 2)`,

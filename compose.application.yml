@@ -1,5 +1,6 @@
 services:
   app:
+    # L'application est construite depuis les sources présentes sur le NAS.
     build:
       context: .
       dockerfile: Dockerfile
@@ -10,8 +11,11 @@ services:
     env_file:
       - .env
     environment:
+      # Le proxy inverse du NAS fournit HTTPS; Elysia écoute localement sur 3080.
       NODE_ENV: production
       PORT: "3080"
       COOKIE_SECURE: "true"
       FORCE_HTTPS: "true"
+    # Le réseau hôte permet d'atteindre PostgreSQL et le proxy du NAS sans
+    # publier une seconde traduction de ports Docker.
     network_mode: host

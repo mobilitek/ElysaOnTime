@@ -1,3 +1,7 @@
+/**
+ * Centralise la validation des variables obligatoires afin que l'application
+ * échoue dès son démarrage plutôt que plus tard au milieu d'une requête.
+ */
 const requiredEnvironmentVariable = (name: string): string => {
   const value = process.env[name];
 
@@ -14,6 +18,8 @@ export const config = {
   },
   isProduction: process.env.NODE_ENV === 'production',
   get secureCookies(): boolean {
+    // En production, les témoins sont sécurisés par défaut. Une valeur explicite
+    // permet toutefois d'exécuter l'application dans un environnement HTTP local.
     return process.env.COOKIE_SECURE
       ? process.env.COOKIE_SECURE === 'true'
       : process.env.NODE_ENV === 'production';
@@ -22,6 +28,7 @@ export const config = {
     return process.env.FORCE_HTTPS === 'true';
   },
   get appUrl(): string {
+    // Retirer la barre finale évite de produire des URL contenant deux barres.
     return requiredEnvironmentVariable('APP_URL').replace(/\/+$/, '');
   },
   get smtp() {

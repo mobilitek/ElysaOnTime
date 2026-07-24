@@ -9,6 +9,8 @@ if (!root) {
   throw new Error('Application root is missing');
 }
 
+// StrictMode détecte en développement les effets React qui ne sont pas
+// reproductibles ou qui oublient leur nettoyage.
 createRoot(root).render(
   <StrictMode>
     <App />

@@ -9,6 +9,8 @@ import {
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
+// Les jetons bruts ne sont jamais conservés en BD. Une fuite de la table des
+// sessions ne suffit donc pas à usurper une session encore valide.
 const hashSessionToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex');
 
@@ -52,6 +54,8 @@ export class UserNotFoundError extends Error {
 }
 
 const assertUniqueEmail = async (email: string, excludedUserId?: string) => {
+  // La même vérification sert à la création et à l'édition du profil.
+  // L'utilisateur courant est ignoré pendant sa propre modification.
   const conditions = [sql`lower(trim(${users.email})) = ${email}`];
   if (excludedUserId) conditions.push(sql`${users.id} <> ${excludedUserId}`);
   const [existing] = await database.select({ id: users.id }).from(users).where(and(...conditions)).limit(1);
@@ -62,6 +66,8 @@ export const createUser = async (input: CreateUserInput): Promise<AuthenticatedU
   const email = normalizeEmail(input.email);
   await assertUniqueEmail(email);
 
+  // Argon2id est utilisé par Bun pour produire un condensat lent et salé,
+  // adapté au stockage sécuritaire des mots de passe.
   const passwordHash = await Bun.password.hash(input.password, {
     algorithm: 'argon2id',
   });
@@ -132,10 +138,13 @@ export const createPasswordReset = async (
     .where(sql`lower(trim(${users.email})) = ${email}`)
     .limit(1);
 
+  // Retourner null sans distinction permet à la route de répondre de la même
+  // façon, que le compte existe ou non, et évite l'énumération des utilisateurs.
   if (!user) return null;
 
   const token = createSessionToken();
   await database.transaction(async (transaction) => {
+    // Un seul lien de réinitialisation peut être valide à la fois par compte.
     await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
     await transaction.insert(passwordResetTokens).values({
       userId: user.id,
@@ -151,6 +160,8 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   const passwordHash = await Bun.password.hash(newPassword, { algorithm: 'argon2id' });
 
   return database.transaction(async (transaction) => {
+    // Supprimer et retourner le jeton en une seule opération le rend à usage
+    // unique, même si deux requêtes arrivent simultanément.
     const [reset] = await transaction
       .delete(passwordResetTokens)
       .where(and(
@@ -165,6 +176,7 @@ export const resetPassword = async (token: string, newPassword: string): Promise
       .update(users)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(users.id, reset.userId));
+    // Toute session existante est invalidée après un changement de mot de passe.
     await transaction.delete(sessions).where(eq(sessions.userId, reset.userId));
     await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, reset.userId));
     return true;
@@ -190,6 +202,8 @@ export const authenticate = async (
     .where(sql`lower(trim(${users.email})) = ${email}`)
     .limit(1);
 
+  // Une réponse unique pour l'utilisateur absent et le mauvais mot de passe
+  // empêche l'appelant de déduire quels courriels possèdent un compte.
   if (!user || !(await Bun.password.verify(password, user.passwordHash))) {
     return null;
   }
@@ -200,6 +214,8 @@ export const authenticate = async (
   const expiresAt = new Date(Date.now() + durationSeconds * 1000);
   const token = createSessionToken();
 
+  // Seul le condensat est persisté; le jeton brut est remis au navigateur
+  // une seule fois et sera transporté dans un témoin HTTP-only.
   await database.insert(sessions).values({
     userId: user.id,
     tokenHash: hashSessionToken(token),
@@ -226,6 +242,8 @@ export const getUserBySessionToken = async (
     return null;
   }
 
+  // Une session expirée est considérée absente, même si sa ligne n'a pas encore
+  // été purgée physiquement de la base de données.
   const [result] = await database
     .select({
       id: users.id,

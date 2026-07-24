@@ -26,6 +26,10 @@ export class ClientNotFoundError extends Error {
 
 const normalizeName = (name: string): string => name.trim();
 
+/**
+ * Vérifie l'unicité insensible à la casse dans l'espace de noms de l'utilisateur.
+ * La contrainte PostgreSQL correspondante protège aussi contre les courses.
+ */
 const assertUniqueName = async (
   userId: string,
   name: string,
@@ -52,6 +56,8 @@ const assertUniqueName = async (
 };
 
 export const listClients = async (userId: string): Promise<ClientRecord[]> =>
+  // Les clients inactifs restent retournés dans l'écran de gestion afin qu'ils
+  // puissent être réactivés; les écrans de saisie les filtrent côté interface.
   database
     .select({
       id: clients.id,
@@ -93,6 +99,8 @@ export const updateClient = async (
   clientId: string,
   input: { name?: string; isActive?: boolean },
 ): Promise<ClientRecord> => {
+  // Inclure userId dans la recherche empêche de modifier le client d'un autre
+  // compte en devinant ou en récupérant son identifiant.
   const [existing] = await database
     .select({ id: clients.id, name: clients.name })
     .from(clients)

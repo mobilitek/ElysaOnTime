@@ -14,6 +14,10 @@ const credentialsSchema = t.Object({
   rememberMe: t.Optional(t.Boolean()),
 });
 
+/**
+ * Routes d'authentification publiques et protégées.
+ * Les schémas Elysia rejettent les données mal formées avant le service métier.
+ */
 export const auth = new Elysia({ prefix: '/api/auth' })
   .post('/register', async ({ body, status }) => {
     try { return status(201, { user: await createUser(body) }); }
@@ -32,6 +36,8 @@ export const auth = new Elysia({ prefix: '/api/auth' })
       }
 
       cookie[SESSION_COOKIE_NAME].set({
+        // Le JavaScript du navigateur ne peut pas lire ce témoin. SameSite=Lax
+        // réduit aussi les risques d'envoi lors d'une requête intersite.
         value: session.token,
         httpOnly: true,
         sameSite: 'lax',
@@ -66,6 +72,7 @@ export const auth = new Elysia({ prefix: '/api/auth' })
       }
     }
 
+    // Toujours répondre 202 afin de ne pas révéler l'existence du compte.
     return status(202, { success: true });
   }, {
     body: t.Object({

@@ -5,6 +5,7 @@ import { createUser, DuplicateEmailError } from '../modules/auth/service';
 
 const terminal = createInterface({ input: stdin, output: stdout });
 
+/** Demande une valeur interactive et refuse les réponses vides. */
 const askRequired = async (label: string): Promise<string> => {
   const value = (await terminal.question(label)).trim();
 
@@ -16,6 +17,8 @@ const askRequired = async (label: string): Promise<string> => {
 };
 
 try {
+  // Cette commande permet de créer le premier compte sans exposer de route
+  // administrative supplémentaire dans l'API.
   const firstName = await askRequired('First name: ');
   const lastName = await askRequired('Last name: ');
   const email = await askRequired('Email: ');
@@ -35,6 +38,7 @@ try {
   }
   process.exitCode = 1;
 } finally {
+  // Fermer readline et PostgreSQL permet au processus Bun de se terminer proprement.
   terminal.close();
   await closeDatabase();
 }

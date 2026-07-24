@@ -8,6 +8,8 @@ const grant = argumentsAfterSeparator.includes('--grant');
 const revoke = argumentsAfterSeparator.includes('--revoke');
 
 try {
+  // Les options --grant et --revoke sont mutuellement exclusives afin qu'une
+  // invocation ambiguë ne modifie jamais silencieusement les permissions.
   if (!email) {
     throw new Error('Usage: bun run user:admin -- --email user@example.com --grant|--revoke');
   }

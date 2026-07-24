@@ -45,6 +45,7 @@ const copy = {
 } as const;
 
 const getInitialLanguage = (): Language => {
+  // La préférence est locale au navigateur et survit aux nouvelles sessions.
   const saved = document.cookie.split('; ').find((value) => value.startsWith('ontime_language='))?.split('=')[1];
   return saved === 'en' ? 'en' : 'fr';
 };
@@ -69,6 +70,8 @@ export function App() {
   const text = copy[language];
 
   useEffect(() => {
+    // Synchroniser le titre et l'attribut lang améliore l'accessibilité et rend
+    // chaque état d'authentification identifiable dans l'onglet du navigateur.
     const titles = language === 'fr'
       ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil' }
       : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile' };
@@ -78,6 +81,8 @@ export function App() {
   }, [isForgotPassword, isRegistering, language, page, resetToken, user]);
 
   useEffect(() => {
+    // Vérifier la session au chargement permet de contourner l'écran de connexion
+    // lorsque le témoin HTTP-only est encore valide.
     const loadSession = async () => {
       try {
         const response = await fetch('/api/auth/session', { credentials: 'include' });
@@ -90,6 +95,7 @@ export function App() {
   }, []);
 
   const selectLanguage = (next: Language) => {
+    // Le témoin est partagé avec toutes les pages sans stockage serveur.
     setLanguage(next);
     document.documentElement.lang = next;
     document.cookie = `ontime_language=${next}; Max-Age=31536000; Path=/; SameSite=Lax`;
@@ -118,6 +124,8 @@ export function App() {
   };
 
   const register = async (event: FormEvent<HTMLFormElement>) => {
+    // La confirmation est validée localement; le serveur valide encore la force
+    // minimale et l'unicité du courriel.
     event.preventDefault(); setError(null); setNotice(null);
     if (password !== passwordConfirmation) { setError(text.mismatch); return; }
     setIsLoading(true);
@@ -131,6 +139,7 @@ export function App() {
   };
 
   const requestPasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    // Le message de succès est identique, que le compte existe ou non.
     event.preventDefault(); setError(null); setNotice(null); setIsLoading(true);
     try {
       const response = await fetch('/api/auth/forgot-password', {
@@ -152,6 +161,8 @@ export function App() {
         body: JSON.stringify({ token: resetToken, password }),
       });
       if (!response.ok) { setError(response.status === 422 ? text.invalidReset : text.unavailable); return; }
+      // Retirer immédiatement le jeton de l'adresse évite qu'il reste visible
+      // dans l'historique après son utilisation.
       window.history.replaceState({}, '', window.location.pathname);
       setResetToken(''); setPassword(''); setPasswordConfirmation(''); setNotice(text.resetComplete);
     } catch { setError(text.unavailable); }
@@ -176,6 +187,8 @@ export function App() {
   };
 
   if (!isCheckingSession && user) {
+    // La navigation de phase 1 demeure un état React simple; chaque page partage
+    // l'utilisateur, la langue et les callbacks de la barre de navigation.
     if (page === 'clients') return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
     if (page === 'projects') return <ProjectsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} />;
     if (page === 'profile') return <ProfilePage language={language} user={user} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;

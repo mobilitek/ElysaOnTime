@@ -8,6 +8,8 @@ type PasswordResetRecipient = {
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | undefined;
 
+// Le transport SMTP est créé au premier courriel puis réutilisé afin d'éviter
+// de reconstruire inutilement la configuration pour chaque demande.
 const getTransporter = () => {
   if (!transporter) {
     const smtp = config.smtp;
@@ -39,10 +41,14 @@ export const sendPasswordResetEmail = async (
   token: string,
 ): Promise<void> => {
   const resetUrl = new URL(config.appUrl);
+  // Le jeton est placé dans l'URL de l'application; React détectera ce paramètre
+  // et affichera directement le formulaire de réinitialisation.
   resetUrl.searchParams.set('resetToken', token);
   const safeName = escapeHtml(recipient.firstName);
   const safeUrl = escapeHtml(resetUrl.toString());
 
+  // Fournir les versions texte et HTML assure une lecture correcte dans les
+  // clients de messagerie modernes comme dans les clients plus restrictifs.
   await getTransporter().sendMail({
     from: config.smtp.from,
     to: recipient.email,

@@ -8,6 +8,7 @@ const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(
 const fileBody = t.Object({ file: t.File() });
 const filename = () => `OnTime-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
+/** API de sauvegarde/restauration réservée à l'utilisateur authentifié. */
 export const backupRoutes = new Elysia({ prefix: '/api/backup' })
   .get('/download', async ({ cookie, set, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value);
@@ -29,9 +30,12 @@ export const backupRoutes = new Elysia({ prefix: '/api/backup' })
   .post('/restore', async ({ body, cookie, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    // Une confirmation explicite protège contre le remplacement accidentel
+    // de toutes les données métier du compte.
     if (body.confirmation !== 'RESTAURER') return status(422, { error: 'CONFIRMATION_REQUIRED' });
     try {
       const { backup, analysis } = await parseBackupFile(body.file);
+      // Le fichier restauré doit être exactement celui préalablement analysé.
       if (analysis.digest !== body.digest) return status(409, { error: 'FILE_CHANGED' });
       return { status: 'complete', summary: await restoreBackup(user.id, backup) };
     } catch (error) {

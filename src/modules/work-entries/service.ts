@@ -15,6 +15,8 @@ type EntryFilters = {
 };
 
 const visibleProject = async (userId: string, projectId: string) => {
+  // Une entrée peut être créée ou manipulée seulement si son client ET son
+  // projet sont actifs et appartiennent à l'utilisateur.
   const [row] = await database.select({ project: projects, clientName: clients.name })
     .from(projects).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(projects.id, projectId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
@@ -23,6 +25,8 @@ const visibleProject = async (userId: string, projectId: string) => {
 };
 
 const validate = (input: Pick<EntryInput, 'durationMinutes' | 'description'>) => {
+  // La saisie courante impose des blocs de 15 minutes. Les valeurs historiques
+  // atypiques restent néanmoins conservées lors des imports.
   if (input.durationMinutes < 15 || input.durationMinutes % 15 !== 0) throw new InvalidDurationError('Duration must be a multiple of 15 minutes');
   if (!input.description.trim()) throw new InvalidDescriptionError('Description is required');
 };
@@ -39,6 +43,8 @@ const selection = {
 };
 
 export const listEntries = async (userId: string, filters: EntryFilters) => {
+  // Le filtrage d'appartenance est répété dans la requête, même si l'utilisateur
+  // est déjà authentifié, pour empêcher toute fuite intercompte.
   const conditions = [eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true), gte(workEntries.workDate, filters.from), lte(workEntries.workDate, filters.to)];
   if (filters.clientId) conditions.push(eq(clients.id, filters.clientId));
   if (filters.projectId) conditions.push(eq(projects.id, filters.projectId));
@@ -50,6 +56,8 @@ export const listEntries = async (userId: string, filters: EntryFilters) => {
     amount: workEntries.amount, isBilled: workEntries.isBilled,
   } as const;
   const order = filters.sortDirection === 'asc' ? asc(orderColumns[filters.sortBy]) : desc(orderColumns[filters.sortBy]);
+  // Charger en parallèle la page et les totaux de toute la sélection. Les totaux
+  // ne sont donc pas limités aux lignes visibles sur la page courante.
   const [rows, [summary]] = await Promise.all([
     database.select(selection).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
       .where(where).orderBy(order, desc(workEntries.createdAt)).limit(filters.pageSize).offset((filters.page - 1) * filters.pageSize),
@@ -61,6 +69,7 @@ export const listEntries = async (userId: string, filters: EntryFilters) => {
 
 export const createEntry = async (userId: string, input: EntryInput) => {
   validate(input); const context = await visibleProject(userId, input.projectId);
+  // Copier le taux courant sur l'entrée constitue son taux historique.
   const [entry] = await database.insert(workEntries).values({ userId, projectId: input.projectId, workDate: input.workDate, durationMinutes: input.durationMinutes, description: input.description.trim(), hourlyRate: context.project.hourlyRate, amount: amountFor(input.durationMinutes, context.project.hourlyRate) }).returning();
   return entry;
 };
@@ -70,11 +79,15 @@ export const updateEntry = async (userId: string, id: string, input: Omit<EntryI
   const [current] = await database.select({ entry: workEntries, projectId: projects.id }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(workEntries.id, id), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
   if (!current) throw new EntryNotFoundError('Entry not found');
+  // Le projet et le taux historique ne changent pas pendant l'édition; seul le
+  // montant est recalculé à partir du taux déjà enregistré sur l'entrée.
   const [entry] = await database.update(workEntries).set({ workDate: input.workDate, durationMinutes: input.durationMinutes, description: input.description.trim(), amount: amountFor(input.durationMinutes, current.entry.hourlyRate), updatedAt: new Date() }).where(eq(workEntries.id, id)).returning();
   return entry;
 };
 
 const requireEntries = async (userId: string, ids: string[]) => {
+  // Toutes les lignes demandées doivent être accessibles. Une sélection mixte
+  // valide/invalide est entièrement refusée au lieu d'être partiellement modifiée.
   const rows = await database.select({ id: workEntries.id }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(inArray(workEntries.id, ids), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true)));
   if (rows.length !== new Set(ids).size) throw new EntryNotFoundError('One or more entries are unavailable');
@@ -83,9 +96,14 @@ const requireEntries = async (userId: string, ids: string[]) => {
 export const toggleEntries = async (userId: string, ids: string[], field: 'isBilled' | 'isDeleted') => {
   await requireEntries(userId, ids);
   const column = field === 'isBilled' ? workEntries.isBilled : workEntries.isDeleted;
+  // Chaque valeur est inversée individuellement en fonction de son état actuel.
   return database.update(workEntries).set({ [field]: sql`not ${column}`, updatedAt: new Date() }).where(inArray(workEntries.id, ids)).returning({ id: workEntries.id, isBilled: workEntries.isBilled, isDeleted: workEntries.isDeleted });
 };
 
+/**
+ * Calcule le prochain jour ouvrable : vendredi vers lundi, samedi vers lundi,
+ * dimanche vers lundi, et une journée dans les autres cas.
+ */
 const nextBusinessDay = (date: string) => {
   const value = new Date(`${date}T12:00:00Z`); const day = value.getUTCDay();
   value.setUTCDate(value.getUTCDate() + (day === 5 ? 3 : day === 6 ? 2 : day === 0 ? 1 : 1));
@@ -97,6 +115,8 @@ export const duplicateEntry = async (userId: string, id: string, nextWorkday: bo
     .where(and(eq(workEntries.id, id), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
   if (!source) throw new EntryNotFoundError('Entry not found');
   const entry = source.entry;
+  // Une copie reprend intégralement les valeurs historiques, mais commence
+  // toujours comme une entrée visible et non facturée.
   const [copy] = await database.insert(workEntries).values({ userId, projectId: entry.projectId, workDate: nextWorkday ? nextBusinessDay(entry.workDate) : entry.workDate, durationMinutes: entry.durationMinutes, description: entry.description, hourlyRate: entry.hourlyRate, amount: entry.amount, isBilled: false, isDeleted: false }).returning();
   return copy;
 };

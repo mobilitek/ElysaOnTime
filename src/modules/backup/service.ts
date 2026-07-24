@@ -5,6 +5,7 @@ import { clients, projects, workEntries } from '../../db/schema';
 
 export const BACKUP_FORMAT = 'ontime-backup';
 export const BACKUP_VERSION = 1;
+// Limite défensive : le fichier complet est chargé en mémoire avant validation.
 const MAX_BACKUP_SIZE = 25 * 1024 * 1024;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -72,6 +73,8 @@ const uniqueIds = (rows: { id: string }[], field: string) => {
 };
 
 export const validateBackup = (value: unknown): BackupDocument => {
+  // La validation est volontairement stricte : aucune donnée n'est écrite tant
+  // que le format, les types et toutes les relations n'ont pas été vérifiés.
   if (!isRecord(value) || value.format !== BACKUP_FORMAT || value.version !== BACKUP_VERSION || !isRecord(value.data)) {
     throw new InvalidBackupFileError('UNSUPPORTED_BACKUP_FORMAT');
   }
@@ -116,7 +119,7 @@ export const validateBackup = (value: unknown): BackupDocument => {
       workDate: requiredString(row.workDate, 'work_date', datePattern),
       durationMinutes: Number(durationMinutes),
       description: requiredString(row.description, 'description'),
-      // Historical imports can legitimately contain negative adjustments.
+      // Les imports historiques peuvent légitimement contenir des ajustements négatifs.
       hourlyRate: requiredString(row.hourlyRate, 'entry_hourly_rate', signedDecimalPattern),
       amount: requiredString(row.amount, 'entry_amount', signedDecimalPattern),
       isBilled: requiredBoolean(row.isBilled, 'entry_billed'),
@@ -131,6 +134,8 @@ export const validateBackup = (value: unknown): BackupDocument => {
   uniqueIds(parsedEntries, 'entry');
   const clientIds = new Set(parsedClients.map((row) => row.id));
   const projectIds = new Set(parsedProjects.map((row) => row.id));
+  // Vérifier les références avant la transaction produit des erreurs lisibles
+  // et empêche toute restauration partielle ou incohérente.
   if (parsedProjects.some((row) => !clientIds.has(row.clientId))) throw new InvalidBackupFileError('UNKNOWN_CLIENT');
   if (parsedEntries.some((row) => !projectIds.has(row.projectId))) throw new InvalidBackupFileError('UNKNOWN_PROJECT');
 
@@ -158,6 +163,8 @@ export const parseBackupFile = async (file: File) => {
     backup,
     analysis: {
       digest: createHash('sha256').update(bytes).digest('hex'),
+      // Le condensat lie l'analyse au fichier restauré. Si le fichier change
+      // après l'écran de confirmation, la restauration sera refusée.
       clients: backup.data.clients.length,
       projects: backup.data.projects.length,
       entries: entries.length,
@@ -172,6 +179,8 @@ export const parseBackupFile = async (file: File) => {
 };
 
 export const createBackup = async (userId: string): Promise<BackupDocument> => {
+  // Le document contient seulement les données appartenant à l'utilisateur.
+  // Les identifiants originaux sont conservés pour reconstruire les relations.
   const clientRows = await database.select().from(clients).where(eq(clients.userId, userId)).orderBy(asc(clients.createdAt));
   const clientIds = clientRows.map((row) => row.id);
   const projectRows = clientIds.length
@@ -191,6 +200,9 @@ export const createBackup = async (userId: string): Promise<BackupDocument> => {
 };
 
 export const restoreBackup = async (userId: string, backup: BackupDocument) => {
+  // La restauration remplace toutes les données métier de l'utilisateur dans
+  // une transaction unique. Son compte et les données des autres utilisateurs
+  // ne sont jamais supprimés.
   await database.transaction(async (transaction) => {
     const currentClients = await transaction.select({ id: clients.id }).from(clients).where(eq(clients.userId, userId));
     const currentClientIds = currentClients.map((row) => row.id);

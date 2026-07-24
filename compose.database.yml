@@ -1,5 +1,7 @@
 services:
   postgres:
+    # Base PostgreSQL locale de développement. En production, l'application
+    # utilise l'instance persistante déjà déployée sur le NAS.
     image: postgres:17-alpine
     container_name: ontime-db
     environment:
@@ -9,6 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      # Le volume nommé survit à la recréation ou à la mise à jour du conteneur.
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ontime -d ontime"]

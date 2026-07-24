@@ -19,9 +19,12 @@ export type ImportAnalysis = ReturnType<typeof summarizeLegacyEntries> & {
 };
 
 const projectKey = (clientName: string, projectName: string) =>
+  // Le séparateur de contrôle évite les collisions ambiguës entre les deux noms.
   `${clientName.trim().toLocaleLowerCase('fr-CA')}\u001f${projectName.trim().toLocaleLowerCase('fr-CA')}`;
 
 export const parseImportFile = async (file: File): Promise<{ entries: LegacyEntry[]; analysis: ImportAnalysis }> => {
+  // L'import historique accepte uniquement le format Excel attendu et applique
+  // une limite de taille avant de charger le classeur en mémoire.
   if (!file.name.toLowerCase().endsWith('.xlsx')) throw new InvalidImportFileError('XLSX_REQUIRED');
   if (file.size > 25 * 1024 * 1024) throw new InvalidImportFileError('FILE_TOO_LARGE');
   const buffer = await file.arrayBuffer();
@@ -34,6 +37,8 @@ export const parseImportFile = async (file: File): Promise<{ entries: LegacyEntr
   if (!entries.length) throw new InvalidImportFileError('EMPTY_WORKBOOK');
   const descriptions = new Map<string, number>();
   for (const entry of entries) {
+    // Le lecteur ajoute -1, -2, etc. aux descriptions de doublons exacts.
+    // Retirer ce suffixe permet de les comptabiliser dans le bilan d'analyse.
     const base = entry.description.replace(/-\d+$/, '');
     descriptions.set(base, (descriptions.get(base) ?? 0) + 1);
   }
@@ -51,6 +56,8 @@ export const parseImportFile = async (file: File): Promise<{ entries: LegacyEntr
 
 export const replaceUserData = async (userId: string, entries: LegacyEntry[]) => {
   const expected = summarizeLegacyEntries(entries);
+  // La transaction garantit un remplacement tout ou rien. Une erreur de lecture,
+  // d'insertion ou de réconciliation restaure automatiquement les anciennes données.
   await database.transaction(async (transaction) => {
     const existingClients = await transaction.select({ id: clients.id }).from(clients).where(eq(clients.userId, userId));
     const clientIds = existingClients.map((client) => client.id);
@@ -63,6 +70,8 @@ export const replaceUserData = async (userId: string, entries: LegacyEntry[]) =>
 
     const canonicalClients = new Map<string, string>();
     for (const entry of entries) {
+      // La première graphie rencontrée devient le nom affiché; la comparaison
+      // demeure insensible à la casse (MOBILITEK équivaut à mobilitek).
       const key = entry.clientName.toLocaleLowerCase('fr-CA');
       if (!canonicalClients.has(key)) canonicalClients.set(key, entry.clientName);
     }
@@ -75,12 +84,15 @@ export const replaceUserData = async (userId: string, entries: LegacyEntry[]) =>
     for (const entry of entries) {
       const key = projectKey(entry.clientName, entry.projectName);
       const current = latestEntryByProject.get(key);
+      // Le taux courant du projet provient de son entrée historique la plus récente.
       if (!current || entry.workDate > current.workDate) latestEntryByProject.set(key, entry);
     }
     const insertedProjects = await transaction.insert(projects).values(
       [...latestEntryByProject.values()].map((entry) => ({
         clientId: clientIdsByName.get(entry.clientName.toLocaleLowerCase('fr-CA'))!,
         name: entry.projectName,
+        // Un ajustement historique peut être négatif, mais un projet courant
+        // respecte la contrainte non négative de PostgreSQL.
         hourlyRate: Number(entry.hourlyRate) < 0 ? '0.00' : entry.hourlyRate,
         isActive: true,
       })),
@@ -103,6 +115,7 @@ export const replaceUserData = async (userId: string, entries: LegacyEntry[]) =>
       isDeleted: false,
     })));
 
+    // Réconcilier les totaux relus depuis PostgreSQL avant de confirmer l'import.
     const [actual] = await transaction.select({
       entries: sql<number>`count(*)::int`,
       billed: sql<number>`count(*) filter (where ${workEntries.isBilled})::int`,

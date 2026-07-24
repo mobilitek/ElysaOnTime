@@ -14,6 +14,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+/** Colonnes d'audit communes aux entités modifiables. */
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -31,6 +32,7 @@ export const users = pgTable(
     ...timestamps,
   },
   (table) => [
+    // Les courriels sont uniques sans tenir compte des espaces ni de la casse.
     uniqueIndex('users_email_unique').on(sql`lower(trim(${table.email}))`),
     check('users_email_not_blank', sql`length(trim(${table.email})) > 0`),
     check('users_first_name_not_blank', sql`length(trim(${table.firstName})) > 0`),
@@ -86,6 +88,8 @@ export const clients = pgTable(
     ...timestamps,
   },
   (table) => [
+    // Un utilisateur ne peut pas posséder deux clients dont les noms ne
+    // diffèrent que par la casse ou par des espaces superflus.
     uniqueIndex('clients_user_name_unique').on(
       table.userId,
       sql`lower(trim(${table.name}))`,
@@ -108,6 +112,8 @@ export const projects = pgTable(
     ...timestamps,
   },
   (table) => [
+    // L'unicité d'un projet est limitée à son client; deux clients distincts
+    // peuvent donc avoir des projets portant le même nom.
     uniqueIndex('projects_client_name_unique').on(
       table.clientId,
       sql`lower(trim(${table.name}))`,
@@ -133,8 +139,12 @@ export const workEntries = pgTable(
     description: text('description').notNull(),
     hourlyRate: numeric('hourly_rate', { precision: 12, scale: 2 }).notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    // Le taux et le montant sont historisés sur l'entrée. Une modification
+    // future du projet ne doit pas réécrire une entrée déjà facturée.
     isBilled: boolean('is_billed').notNull().default(false),
     isDeleted: boolean('is_deleted').notNull().default(false),
+    // La suppression est logique : les données restent récupérables et peuvent
+    // être réaffichées avec le filtre « Afficher les entrées supprimées ».
     ...timestamps,
   },
   (table) => [
@@ -153,6 +163,8 @@ export const workEntries = pgTable(
   ],
 );
 
+// Ces relations décrivent la navigation Drizzle; les clés étrangères ci-dessus
+// demeurent la source réelle d'intégrité dans PostgreSQL.
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   passwordResetTokens: many(passwordResetTokens),

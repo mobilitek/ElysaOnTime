@@ -8,6 +8,8 @@ import { exportWorkEntries } from './export';
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
 const date = t.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' });
 const entryBody = t.Object({ workDate: date, durationMinutes: t.Integer({ minimum: 15 }), description: t.String({ minLength: 1 }) });
+
+/** Traduit les erreurs métier connues en réponses HTTP stables pour le frontend. */
 const errors = (error: unknown, status: (code: number, body: unknown) => unknown) => {
   if (error instanceof EntryNotFoundError) return status(404, { error: 'ENTRY_NOT_FOUND' });
   if (error instanceof ProjectUnavailableError) return status(422, { error: 'PROJECT_UNAVAILABLE' });
@@ -16,10 +18,12 @@ const errors = (error: unknown, status: (code: number, body: unknown) => unknown
   throw error;
 };
 
+/** API du journal : consultation, export, saisie, copie et changements d'état. */
 export const workEntryRoutes = new Elysia({ prefix: '/api/work-entries' })
   .get('/export', async ({ cookie, query, set, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' });
     if (query.from > query.to) return status(422, { error: 'INVALID_DATE_RANGE' });
+    // L'export applique exactement les mêmes filtres fonctionnels que la liste.
     const result = await exportWorkEntries(user, { from: query.from, to: query.to, clientId: query.clientId, projectId: query.projectId, includeDeleted: query.includeDeleted === 'true', confidential: query.confidential === 'true', language: query.language });
     set.headers['content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     set.headers['content-disposition'] = `attachment; filename="${result.filename}"`;
