@@ -27,6 +27,7 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     firstName: varchar('first_name', { length: 100 }).notNull(),
     lastName: varchar('last_name', { length: 100 }).notNull(),
+    isAdmin: boolean('is_admin').notNull().default(false),
     ...timestamps,
   },
   (table) => [

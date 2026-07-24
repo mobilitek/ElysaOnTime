@@ -55,6 +55,9 @@ Routes disponibles :
 - `POST /api/work-entries/toggle-deleted`
 - `POST /api/work-entries/:id/duplicate`
 - `GET /api/work-entries/export`
+- `GET /api/backup/download`
+- `POST /api/backup/analyze`
+- `POST /api/backup/restore`
 - `PATCH /api/auth/profile`
 - `POST /api/auth/change-password`
 - `POST /api/auth/register`
@@ -69,7 +72,24 @@ bun run db:generate
 bun run db:migrate
 bun run db:studio
 bun run user:create
+bun run user:admin -- --email utilisateur@example.com --grant
 ```
+
+Retirez le droit administrateur avec la même commande et l'option `--revoke`.
+
+### Export, sauvegarde et restauration
+
+L'export Excel est un rapport construit à partir des filtres du journal. Il
+n'est pas destiné à restaurer l'application.
+
+La sauvegarde produit un fichier JSON OnTime versionné contenant tous les
+clients, projets et entrées de l'utilisateur, y compris les éléments inactifs
+ou supprimés, les statuts facturés, les tarifs historiques et les dates
+originales. La restauration analyse ce fichier avant de demander la
+confirmation `RESTAURER`. Elle remplace uniquement les données de l'utilisateur
+connecté, dans une transaction; son compte et les données des autres
+utilisateurs ne sont pas modifiés. Ces outils sont disponibles à tous les
+utilisateurs authentifiés.
 
 ### Import historique Excel
 

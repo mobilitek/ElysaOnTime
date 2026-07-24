@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 
 type Language = 'fr' | 'en';
-type User = { id: string; email: string; firstName: string; lastName: string };
+type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
 type Props = { language: Language; user: User; onUserChange: (user: User) => void; onLanguageChange: (value: Language) => void; onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void; onNavigateProjects: () => void };
 const copy = {
   fr: { journal: 'Journal', clients: 'Mes clients', projects: 'Projets', profile: 'Profil', logout: 'Se déconnecter', title: 'Mon profil', subtitle: 'Gérez vos renseignements et la sécurité de votre compte.', info: 'Renseignements personnels', firstName: 'Prénom', lastName: 'Nom', email: 'Adresse courriel', save: 'Enregistrer les modifications', saved: 'Profil mis à jour.', password: 'Changer le mot de passe', current: 'Mot de passe actuel', next: 'Nouveau mot de passe', confirm: 'Confirmer le nouveau mot de passe', change: 'Changer le mot de passe', changed: 'Mot de passe modifié.', mismatch: 'Les nouveaux mots de passe ne correspondent pas.', invalid: 'Le mot de passe actuel est incorrect.', duplicate: 'Cette adresse courriel est déjà utilisée.', required: 'Tous les champs sont obligatoires.', error: 'Une erreur est survenue.' },

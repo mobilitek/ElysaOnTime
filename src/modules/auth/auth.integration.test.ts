@@ -77,6 +77,7 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
         email: testEmail,
         firstName: 'Integration',
         lastName: 'Test',
+        isAdmin: false,
       },
     });
 
@@ -112,6 +113,31 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
       }),
     );
     expect(expiredSessionResponse.status).toBe(401);
+  });
+
+  test('allows every authenticated user to use backup and restore tools', async () => {
+    const app = createApp();
+    const login = await app.handle(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: testEmail, password: 'integration-password' }),
+    }));
+    const cookie = login.headers.get('set-cookie')?.split(';', 1)[0];
+    if (!cookie) throw new Error('Expected cookie');
+
+    const request = () => {
+      const body = new FormData();
+      body.set('file', new File(['not-a-backup'], 'backup.json', {
+        type: 'application/json',
+      }));
+      return app.handle(new Request('http://localhost/api/backup/analyze', {
+        method: 'POST',
+        headers: { cookie },
+        body,
+      }));
+    };
+
+    expect((await request()).status).toBe(422);
   });
 
   test('updates the profile and securely changes the password', async () => {

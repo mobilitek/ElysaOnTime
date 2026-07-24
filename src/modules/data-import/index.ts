@@ -11,6 +11,7 @@ export const dataImportRoutes = new Elysia({ prefix: '/api/data-import' })
   .post('/analyze', async ({ body, cookie, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    if (!user.isAdmin) return status(403, { error: 'ADMIN_REQUIRED' });
     try {
       const { analysis } = await parseImportFile(body.file);
       return { analysis };
@@ -22,6 +23,7 @@ export const dataImportRoutes = new Elysia({ prefix: '/api/data-import' })
   .post('/execute', async ({ body, cookie, status }) => {
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    if (!user.isAdmin) return status(403, { error: 'ADMIN_REQUIRED' });
     if (body.confirmation !== 'REMPLACER') return status(422, { error: 'CONFIRMATION_REQUIRED' });
     try {
       const { entries, analysis } = await parseImportFile(body.file);

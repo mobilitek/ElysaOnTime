@@ -15,6 +15,13 @@
       "when": 1784474546257,
       "tag": "0001_glossy_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784858401488,
+      "tag": "0002_strong_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

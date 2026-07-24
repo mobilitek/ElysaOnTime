@@ -13,6 +13,7 @@
     "test:integration": "RUN_INTEGRATION_TESTS=1 bun test",
     "typecheck": "bunx tsc --noEmit",
     "user:create": "bun src/commands/create-user.ts",
+    "user:admin": "bun src/commands/set-admin.ts",
     "data:import-legacy": "bun src/commands/import-legacy-excel.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

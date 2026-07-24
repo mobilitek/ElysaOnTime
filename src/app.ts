@@ -3,6 +3,7 @@ import { Elysia } from 'elysia';
 import { config } from './config';
 import { database } from './database';
 import { auth } from './modules/auth';
+import { backupRoutes } from './modules/backup';
 import { clientRoutes } from './modules/clients';
 import { dataImportRoutes } from './modules/data-import';
 import { projectRoutes } from './modules/projects';
@@ -66,6 +67,7 @@ export const createApp = () =>
       }
     })
     .use(auth)
+    .use(backupRoutes)
     .use(clientRoutes)
     .use(dataImportRoutes)
     .use(projectRoutes)

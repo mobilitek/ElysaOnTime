@@ -5,7 +5,7 @@ import { WorkLogPage } from './WorkLogPage';
 import { ProfilePage } from './ProfilePage';
 
 type Language = 'fr' | 'en';
-type User = { id: string; email: string; firstName: string; lastName: string };
+type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
 
 const copy = {
   fr: {

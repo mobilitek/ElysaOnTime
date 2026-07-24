@@ -19,6 +19,7 @@ export type AuthenticatedUser = {
   email: string;
   firstName: string;
   lastName: string;
+  isAdmin: boolean;
 };
 
 export type CreatedSession = {
@@ -77,6 +78,7 @@ export const createUser = async (input: CreateUserInput): Promise<AuthenticatedU
       email: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
+      isAdmin: users.isAdmin,
     });
 
   if (!user) {
@@ -89,7 +91,24 @@ export const createUser = async (input: CreateUserInput): Promise<AuthenticatedU
 export const updateProfile = async (userId: string, input: { email: string; firstName: string; lastName: string }): Promise<AuthenticatedUser> => {
   const email = normalizeEmail(input.email); const firstName = input.firstName.trim(); const lastName = input.lastName.trim();
   await assertUniqueEmail(email, userId);
-  const [user] = await database.update(users).set({ email, firstName, lastName, updatedAt: new Date() }).where(eq(users.id, userId)).returning({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName });
+  const [user] = await database.update(users).set({ email, firstName, lastName, updatedAt: new Date() }).where(eq(users.id, userId)).returning({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, isAdmin: users.isAdmin });
+  if (!user) throw new UserNotFoundError();
+  return user;
+};
+
+export const setAdminByEmail = async (emailInput: string, isAdmin: boolean): Promise<AuthenticatedUser> => {
+  const email = normalizeEmail(emailInput);
+  const [user] = await database
+    .update(users)
+    .set({ isAdmin, updatedAt: new Date() })
+    .where(sql`lower(trim(${users.email})) = ${email}`)
+    .returning({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      isAdmin: users.isAdmin,
+    });
   if (!user) throw new UserNotFoundError();
   return user;
 };
@@ -115,6 +134,7 @@ export const authenticate = async (
       passwordHash: users.passwordHash,
       firstName: users.firstName,
       lastName: users.lastName,
+      isAdmin: users.isAdmin,
     })
     .from(users)
     .where(sql`lower(trim(${users.email})) = ${email}`)
@@ -144,6 +164,7 @@ export const authenticate = async (
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      isAdmin: user.isAdmin,
     },
   };
 };
@@ -161,6 +182,7 @@ export const getUserBySessionToken = async (
       email: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
+      isAdmin: users.isAdmin,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
