@@ -22,6 +22,30 @@ développement local. Le fichier `compose.application.staging.yml` construit et
 démarre uniquement l'application OnTime sur le NAS; il utilise la base
 PostgreSQL déjà installée sur celui-ci.
 
+## Déploiement manuel sur le NAS
+
+Chaque environnement doit être installé dans son propre clone Git et conserver
+son fichier secret à la racine du clone :
+
+- `.env.staging` pour la branche `staging`;
+- `.env.prod` pour la branche `prod`.
+
+Depuis le clone concerné, lancez :
+
+```bash
+./scripts/deploy-staging.sh
+```
+
+ou :
+
+```bash
+./scripts/deploy-prod.sh
+```
+
+Le staging répond sur le port `3080` et la production sur le port `3081`.
+Les deux scripts récupèrent leur branche distante, reconstruisent uniquement
+le conteneur d'application, puis valident la route `/health`.
+
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.
 
