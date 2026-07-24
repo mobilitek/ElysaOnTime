@@ -16,6 +16,7 @@
     "user:admin": "bun src/commands/set-admin.ts",
     "data:import-legacy": "bun src/commands/import-legacy-excel.ts",
     "db:generate": "drizzle-kit generate",
+    "db:wait": "bun src/commands/wait-for-database.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
   },

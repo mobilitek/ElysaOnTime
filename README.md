@@ -69,6 +69,7 @@ bun test
 bun run test:integration
 bun run typecheck
 bun run db:generate
+bun run db:wait
 bun run db:migrate
 bun run db:studio
 bun run user:create
