@@ -18,5 +18,8 @@ export const config = {
       ? process.env.COOKIE_SECURE === 'true'
       : process.env.NODE_ENV === 'production';
   },
+  get forceHttps(): boolean {
+    return process.env.FORCE_HTTPS === 'true';
+  },
   port: Number(process.env.PORT ?? 3000),
 };

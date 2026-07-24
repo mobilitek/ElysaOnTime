@@ -39,8 +39,24 @@ const serveFrontend = async (path: string, status: { status?: number | string })
   };
 };
 
+export const redirectHttpToHttps = (request: Request): Response | undefined => {
+  const forwardedProtocol = request.headers.get('x-forwarded-proto')
+    ?.split(',', 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (forwardedProtocol !== 'http') return;
+
+  const destination = new URL(request.url);
+  destination.protocol = 'https:';
+  destination.port = '';
+  return Response.redirect(destination, 308);
+};
+
 export const createApp = () =>
   new Elysia({ name: 'ontime' })
+    .onRequest(({ request }) =>
+      config.forceHttps ? redirectHttpToHttps(request) : undefined,
+    )
     .get('/', ({ set }) =>
       config.isProduction
         ? serveFrontend('/', set)

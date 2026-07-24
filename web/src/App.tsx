@@ -6,6 +6,7 @@ import { ProfilePage } from './ProfilePage';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
+type Page = 'worklog' | 'clients' | 'projects' | 'profile';
 
 const copy = {
   fr: {
@@ -58,8 +59,17 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState<'worklog' | 'clients' | 'projects' | 'profile'>('worklog');
+  const [page, setPage] = useState<Page>('worklog');
   const text = copy[language];
+
+  useEffect(() => {
+    const titles = language === 'fr'
+      ? { login: 'Connexion', register: 'Créer un compte', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil' }
+      : { login: 'Sign in', register: 'Create account', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile' };
+    const section = user ? titles[page] : isRegistering ? titles.register : titles.login;
+    document.title = `OnTime — ${section}`;
+    document.documentElement.lang = language;
+  }, [isRegistering, language, page, user]);
 
   useEffect(() => {
     const loadSession = async () => {

@@ -12,5 +12,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3080"
-      COOKIE_SECURE: "false"
+      COOKIE_SECURE: "true"
+      FORCE_HTTPS: "true"
     network_mode: host

@@ -21,19 +21,6 @@ Le fichier `compose.database.yml` démarre PostgreSQL pour le développement
 local. Le fichier `compose.application.yml` construit et démarre l'application
 OnTime sur le NAS; il utilise la base PostgreSQL déjà installée sur celui-ci.
 
-## Déploiement manuel sur le NAS
-
-Le déploiement doit être installé dans un clone Git dédié de la branche `prod`
-et conserver son fichier secret `.env` à la racine du clone.
-
-```bash
-./scripts/deploy.sh
-```
-
-L'application répond sur le port `3080`. Le script récupère la branche distante
-`prod`, reconstruit uniquement le conteneur d'application, puis valide la route
-`/health`.
-
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.
 
