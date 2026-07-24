@@ -34,7 +34,7 @@ export const auth = new Elysia({ prefix: '/api/auth' })
         value: session.token,
         httpOnly: true,
         sameSite: 'lax',
-        secure: config.isProduction,
+        secure: config.secureCookies,
         path: '/',
         ...(body.rememberMe
           ? {

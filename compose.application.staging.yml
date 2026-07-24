@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    image: elysia-ontime:staging
+    container_name: ontime-app-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: production
+      PORT: "3080"
+      COOKIE_SECURE: "false"
+    network_mode: host

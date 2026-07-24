@@ -6,7 +6,7 @@ Socle minimal d'une API Bun/ElysiaJS avec PostgreSQL.
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose -f compose.database.dev.yml up -d
 bun install
 bun run db:migrate
 bun run dev:api
@@ -16,6 +16,11 @@ bun run dev:web
 L'API répond sur `http://localhost:3000` et son contrôle de santé sur
 `http://localhost:3000/health`. L'interface React répond sur
 `http://localhost:5173` en développement.
+
+Le fichier `compose.database.dev.yml` démarre uniquement PostgreSQL pour le
+développement local. Le fichier `compose.application.staging.yml` construit et
+démarre uniquement l'application OnTime sur le NAS; il utilise la base
+PostgreSQL déjà installée sur celui-ci.
 
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.

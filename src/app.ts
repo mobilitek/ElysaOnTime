@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
+import { config } from './config';
 import { database } from './database';
 import { auth } from './modules/auth';
 import { clientRoutes } from './modules/clients';
@@ -7,12 +8,46 @@ import { dataImportRoutes } from './modules/data-import';
 import { projectRoutes } from './modules/projects';
 import { workEntryRoutes } from './modules/work-entries';
 
+const frontendFile = (path: string) => {
+  const relativePath = path === '/' ? 'index.html' : path.slice(1);
+
+  return Bun.file(`dist/web/${relativePath}`);
+};
+
+const serveFrontend = async (path: string, status: { status?: number | string }) => {
+  const file = frontendFile(path);
+
+  if (await file.exists()) {
+    return new Response(file);
+  }
+
+  const index = frontendFile('/');
+
+  if (await index.exists()) {
+    return new Response(index, {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+      },
+    });
+  }
+
+  status.status = 404;
+
+  return {
+    error: 'NOT_FOUND',
+  };
+};
+
 export const createApp = () =>
   new Elysia({ name: 'ontime' })
-    .get('/', () => ({
-      name: 'Elysia Ontime API',
-      status: 'ok',
-    }))
+    .get('/', ({ set }) =>
+      config.isProduction
+        ? serveFrontend('/', set)
+        : {
+            name: 'Elysia Ontime API',
+            status: 'ok',
+          },
+    )
     .get('/health', async ({ set }) => {
       try {
         await database.execute(sql`SELECT 1`);
@@ -34,4 +69,15 @@ export const createApp = () =>
     .use(clientRoutes)
     .use(dataImportRoutes)
     .use(projectRoutes)
-    .use(workEntryRoutes);
+    .use(workEntryRoutes)
+    .get('/*', ({ path, set }) => {
+      if (path.startsWith('/api/')) {
+        set.status = 404;
+
+        return {
+          error: 'NOT_FOUND',
+        };
+      }
+
+      return config.isProduction ? serveFrontend(path, set) : { error: 'NOT_FOUND' };
+    });

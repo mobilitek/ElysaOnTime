@@ -13,5 +13,10 @@ export const config = {
     return requiredEnvironmentVariable('DATABASE_URL');
   },
   isProduction: process.env.NODE_ENV === 'production',
+  get secureCookies(): boolean {
+    return process.env.COOKIE_SECURE
+      ? process.env.COOKIE_SECURE === 'true'
+      : process.env.NODE_ENV === 'production';
+  },
   port: Number(process.env.PORT ?? 3000),
 };
