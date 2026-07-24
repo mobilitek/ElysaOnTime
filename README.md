@@ -6,7 +6,7 @@ Socle minimal d'une API Bun/ElysiaJS avec PostgreSQL.
 
 ```bash
 cp .env.example .env
-docker compose -f compose.database.dev.yml up -d
+docker compose -f compose.database.yml up -d
 bun install
 bun run db:migrate
 bun run dev:api
@@ -17,34 +17,22 @@ L'API répond sur `http://localhost:3000` et son contrôle de santé sur
 `http://localhost:3000/health`. L'interface React répond sur
 `http://localhost:5173` en développement.
 
-Le fichier `compose.database.dev.yml` démarre uniquement PostgreSQL pour le
-développement local. Le fichier `compose.application.staging.yml` construit et
-démarre uniquement l'application OnTime sur le NAS; il utilise la base
-PostgreSQL déjà installée sur celui-ci.
+Le fichier `compose.database.yml` démarre PostgreSQL pour le développement
+local. Le fichier `compose.application.yml` construit et démarre l'application
+OnTime sur le NAS; il utilise la base PostgreSQL déjà installée sur celui-ci.
 
 ## Déploiement manuel sur le NAS
 
-Chaque environnement doit être installé dans son propre clone Git et conserver
-son fichier secret à la racine du clone :
-
-- `.env.staging` pour la branche `staging`;
-- `.env.prod` pour la branche `prod`.
-
-Depuis le clone concerné, lancez :
+Le déploiement doit être installé dans un clone Git dédié de la branche `prod`
+et conserver son fichier secret `.env` à la racine du clone.
 
 ```bash
-./scripts/deploy-staging.sh
+./scripts/deploy.sh
 ```
 
-ou :
-
-```bash
-./scripts/deploy-prod.sh
-```
-
-Le staging répond sur le port `3080` et la production sur le port `3081`.
-Les deux scripts récupèrent leur branche distante, reconstruisent uniquement
-le conteneur d'application, puis valident la route `/health`.
+L'application répond sur le port `3080`. Le script récupère la branche distante
+`prod`, reconstruit uniquement le conteneur d'application, puis valide la route
+`/health`.
 
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.

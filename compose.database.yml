@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: ontime-db-dev
+    container_name: ontime-db
     environment:
       POSTGRES_DB: ontime
       POSTGRES_USER: ontime

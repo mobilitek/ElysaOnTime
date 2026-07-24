@@ -4,11 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
       network: host
-    image: elysia-ontime:staging
-    container_name: ontime-app-staging
+    image: ontime-app:latest
+    container_name: ontime-app
     restart: unless-stopped
     env_file:
-      - .env.staging
+      - .env
     environment:
       NODE_ENV: production
       PORT: "3080"

@@ -1,7 +1,5 @@
 node_modules/
 .env
-.env.staging
-.env.prod
 dist/
 coverage/
 *.log

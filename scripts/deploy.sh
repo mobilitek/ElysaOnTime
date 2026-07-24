@@ -3,9 +3,9 @@
 set -eu
 
 BRANCH=prod
-COMPOSE_FILE=compose.application.prod.yml
-CONTAINER_NAME=ontime-app-prod
-HEALTH_URL=http://127.0.0.1:3081/health
+COMPOSE_FILE=compose.application.yml
+CONTAINER_NAME=ontime-app
+HEALTH_URL=http://127.0.0.1:3080/health
 DOCKER_BIN=/var/packages/ContainerManager/target/usr/bin/docker
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(dirname -- "$SCRIPT_DIR")
@@ -17,8 +17,8 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
-if [ ! -f .env.prod ]; then
-  echo "Erreur: le fichier secret $PROJECT_DIR/.env.prod est absent." >&2
+if [ ! -f .env ]; then
+  echo "Erreur: le fichier secret $PROJECT_DIR/.env est absent." >&2
   exit 1
 fi
 
