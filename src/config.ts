@@ -21,5 +21,18 @@ export const config = {
   get forceHttps(): boolean {
     return process.env.FORCE_HTTPS === 'true';
   },
+  get appUrl(): string {
+    return requiredEnvironmentVariable('APP_URL').replace(/\/+$/, '');
+  },
+  get smtp() {
+    return {
+      host: requiredEnvironmentVariable('SMTP_HOST'),
+      port: Number(requiredEnvironmentVariable('SMTP_PORT')),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: requiredEnvironmentVariable('SMTP_USER'),
+      password: requiredEnvironmentVariable('SMTP_PASSWORD'),
+      from: requiredEnvironmentVariable('SMTP_FROM'),
+    };
+  },
   port: Number(process.env.PORT ?? 3000),
 };

@@ -5,7 +5,8 @@ import {
   SESSION_COOKIE_NAME,
 } from './constants';
 import { getSessionToken } from './cookie';
-import { authenticate, changePassword, createUser, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, updateProfile } from './service';
+import { sendPasswordResetEmail } from '../email/service';
+import { authenticate, changePassword, createPasswordReset, createUser, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, resetPassword, updateProfile } from './service';
 
 const credentialsSchema = t.Object({
   email: t.String({ format: 'email', maxLength: 320 }),
@@ -54,6 +55,34 @@ export const auth = new Elysia({ prefix: '/api/auth' })
     sessionCookie.remove();
 
     return { success: true };
+  })
+  .post('/forgot-password', async ({ body, status }) => {
+    const reset = await createPasswordReset(body.email);
+    if (reset) {
+      try {
+        await sendPasswordResetEmail(reset, reset.token);
+      } catch (error) {
+        console.error('Unable to send password reset email', error);
+      }
+    }
+
+    return status(202, { success: true });
+  }, {
+    body: t.Object({
+      email: t.String({ format: 'email', maxLength: 320 }),
+    }),
+  })
+  .post('/reset-password', async ({ body, status }) => {
+    if (!(await resetPassword(body.token, body.password))) {
+      return status(422, { error: 'INVALID_OR_EXPIRED_TOKEN' });
+    }
+
+    return { success: true };
+  }, {
+    body: t.Object({
+      token: t.String({ minLength: 20, maxLength: 200 }),
+      password: t.String({ minLength: 8, maxLength: 200 }),
+    }),
   })
   .get('/session', async ({ cookie, status }) => {
     const user = await getUserBySessionToken(

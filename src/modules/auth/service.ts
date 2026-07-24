@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { database } from '../../database';
-import { sessions, users } from '../../db/schema';
+import { passwordResetTokens, sessions, users } from '../../db/schema';
 import {
   REMEMBERED_SESSION_DURATION_SECONDS,
   STANDARD_SESSION_DURATION_SECONDS,
@@ -13,6 +13,7 @@ const hashSessionToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex');
 
 const createSessionToken = (): string => randomBytes(32).toString('base64url');
+const PASSWORD_RESET_DURATION_MS = 30 * 60 * 1000;
 
 export type AuthenticatedUser = {
   id: string;
@@ -119,6 +120,55 @@ export const changePassword = async (userId: string, currentPassword: string, ne
   if (!(await Bun.password.verify(currentPassword, user.passwordHash))) throw new InvalidCurrentPasswordError();
   const passwordHash = await Bun.password.hash(newPassword, { algorithm: 'argon2id' });
   await database.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+};
+
+export const createPasswordReset = async (
+  emailInput: string,
+): Promise<{ email: string; firstName: string; token: string } | null> => {
+  const email = normalizeEmail(emailInput);
+  const [user] = await database
+    .select({ id: users.id, email: users.email, firstName: users.firstName })
+    .from(users)
+    .where(sql`lower(trim(${users.email})) = ${email}`)
+    .limit(1);
+
+  if (!user) return null;
+
+  const token = createSessionToken();
+  await database.transaction(async (transaction) => {
+    await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
+    await transaction.insert(passwordResetTokens).values({
+      userId: user.id,
+      tokenHash: hashSessionToken(token),
+      expiresAt: new Date(Date.now() + PASSWORD_RESET_DURATION_MS),
+    });
+  });
+
+  return { email: user.email, firstName: user.firstName, token };
+};
+
+export const resetPassword = async (token: string, newPassword: string): Promise<boolean> => {
+  const passwordHash = await Bun.password.hash(newPassword, { algorithm: 'argon2id' });
+
+  return database.transaction(async (transaction) => {
+    const [reset] = await transaction
+      .delete(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.tokenHash, hashSessionToken(token)),
+        gt(passwordResetTokens.expiresAt, new Date()),
+      ))
+      .returning({ userId: passwordResetTokens.userId });
+
+    if (!reset) return false;
+
+    await transaction
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, reset.userId));
+    await transaction.delete(sessions).where(eq(sessions.userId, reset.userId));
+    await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, reset.userId));
+    return true;
+  });
 };
 
 export const authenticate = async (

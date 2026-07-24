@@ -15,7 +15,7 @@ const copy = {
     email: 'Adresse courriel', emailPlaceholder: 'vous@exemple.ca',
     password: 'Mot de passe', passwordPlaceholder: 'Votre mot de passe',
     remember: 'Rester connecté', forgot: 'Mot de passe oublié?',
-    phaseTwo: 'Disponible dans la phase 2', login: 'Se connecter', loading: 'Connexion…',
+    login: 'Se connecter', loading: 'Connexion…',
     invalid: 'Adresse courriel ou mot de passe invalide.',
     unavailable: 'Le service est momentanément indisponible. Réessayez dans un instant.',
     secure: 'Connexion sécurisée', welcome: 'Bonjour',
@@ -23,6 +23,8 @@ const copy = {
     logout: 'Se déconnecter', productTitle: 'Chaque heure compte.',
     productText: 'Consignez votre travail, suivez vos projets et préparez vos exports sans perdre le fil.',
     createAccount: 'Créer un compte', haveAccount: 'J’ai déjà un compte', registerTitle: 'Créer votre compte', registerSubtitle: 'Commencez votre journal de travail OnTime.', firstName: 'Prénom', lastName: 'Nom', confirmPassword: 'Confirmer le mot de passe', register: 'Créer le compte', registering: 'Création…', mismatch: 'Les mots de passe ne correspondent pas.', emailExists: 'Cette adresse courriel est déjà utilisée.', accountCreated: 'Compte créé. Vous pouvez maintenant vous connecter.',
+    forgotTitle: 'Mot de passe oublié', forgotSubtitle: 'Entrez votre adresse courriel pour recevoir un lien sécurisé.', sendLink: 'Envoyer le lien', sendingLink: 'Envoi…', resetSent: 'Si un compte correspond à cette adresse, un courriel vient d’être envoyé.', backToLogin: 'Retour à la connexion',
+    resetTitle: 'Nouveau mot de passe', resetSubtitle: 'Choisissez un nouveau mot de passe pour votre compte.', newPassword: 'Nouveau mot de passe', resetPassword: 'Modifier le mot de passe', resettingPassword: 'Modification…', resetComplete: 'Mot de passe modifié. Vous pouvez maintenant vous connecter.', invalidReset: 'Ce lien est invalide ou expiré. Demandez un nouveau lien.',
   },
   en: {
     eyebrow: 'WORK LOG', title: 'Welcome back',
@@ -30,13 +32,15 @@ const copy = {
     email: 'Email address', emailPlaceholder: 'you@example.ca',
     password: 'Password', passwordPlaceholder: 'Your password',
     remember: 'Keep me signed in', forgot: 'Forgot password?',
-    phaseTwo: 'Available in phase 2', login: 'Sign in', loading: 'Signing in…',
+    login: 'Sign in', loading: 'Signing in…',
     invalid: 'Invalid email address or password.',
     unavailable: 'The service is temporarily unavailable. Please try again shortly.',
     secure: 'Secure connection', welcome: 'Hello', signedIn: 'Your OnTime session is active.',
     continue: 'Continue to work log', logout: 'Sign out', productTitle: 'Every hour matters.',
     productText: 'Log your work, follow your projects and prepare exports without losing track.',
     createAccount: 'Create an account', haveAccount: 'I already have an account', registerTitle: 'Create your account', registerSubtitle: 'Start your OnTime work log.', firstName: 'First name', lastName: 'Last name', confirmPassword: 'Confirm password', register: 'Create account', registering: 'Creating…', mismatch: 'Passwords do not match.', emailExists: 'This email address is already in use.', accountCreated: 'Account created. You can now sign in.',
+    forgotTitle: 'Forgot password', forgotSubtitle: 'Enter your email address to receive a secure link.', sendLink: 'Send link', sendingLink: 'Sending…', resetSent: 'If an account matches this address, an email has just been sent.', backToLogin: 'Back to sign in',
+    resetTitle: 'New password', resetSubtitle: 'Choose a new password for your account.', newPassword: 'New password', resetPassword: 'Change password', resettingPassword: 'Changing…', resetComplete: 'Password changed. You can now sign in.', invalidReset: 'This link is invalid or expired. Request a new link.',
   },
 } as const;
 
@@ -51,6 +55,8 @@ export function App() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('resetToken') ?? '');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -64,12 +70,12 @@ export function App() {
 
   useEffect(() => {
     const titles = language === 'fr'
-      ? { login: 'Connexion', register: 'Créer un compte', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil' }
-      : { login: 'Sign in', register: 'Create account', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile' };
-    const section = user ? titles[page] : isRegistering ? titles.register : titles.login;
+      ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil' }
+      : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile' };
+    const section = user ? titles[page] : resetToken ? titles.reset : isForgotPassword ? titles.forgot : isRegistering ? titles.register : titles.login;
     document.title = `OnTime — ${section}`;
     document.documentElement.lang = language;
-  }, [isRegistering, language, page, user]);
+  }, [isForgotPassword, isRegistering, language, page, resetToken, user]);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -124,7 +130,40 @@ export function App() {
     finally { setIsLoading(false); }
   };
 
+  const requestPasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError(null); setNotice(null); setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }),
+      });
+      if (!response.ok) { setError(text.unavailable); return; }
+      setNotice(text.resetSent);
+    } catch { setError(text.unavailable); }
+    finally { setIsLoading(false); }
+  };
+
+  const submitNewPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError(null); setNotice(null);
+    if (password !== passwordConfirmation) { setError(text.mismatch); return; }
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password }),
+      });
+      if (!response.ok) { setError(response.status === 422 ? text.invalidReset : text.unavailable); return; }
+      window.history.replaceState({}, '', window.location.pathname);
+      setResetToken(''); setPassword(''); setPasswordConfirmation(''); setNotice(text.resetComplete);
+    } catch { setError(text.unavailable); }
+    finally { setIsLoading(false); }
+  };
+
   const toggleRegistration = () => { setIsRegistering((value) => !value); setError(null); setNotice(null); setPassword(''); setPasswordConfirmation(''); };
+  const showForgotPassword = () => { setIsForgotPassword(true); setIsRegistering(false); setError(null); setNotice(null); setPassword(''); };
+  const showLogin = () => {
+    if (resetToken) window.history.replaceState({}, '', window.location.pathname);
+    setResetToken(''); setIsForgotPassword(false); setIsRegistering(false); setError(null); setNotice(null); setPassword(''); setPasswordConfirmation('');
+  };
 
   const logout = async () => {
     setIsLoading(true);
@@ -167,22 +206,21 @@ export function App() {
           <div className="form-content">
             {isCheckingSession ? <div className="session-loading" aria-live="polite"><span className="loading-ring" /></div>
               : (
-                <><p className="eyebrow">{text.eyebrow}</p><h1>{isRegistering ? text.registerTitle : text.title}</h1><p className="form-subtitle">{isRegistering ? text.registerSubtitle : text.subtitle}</p>
-                  <form onSubmit={isRegistering ? register : login} noValidate>
+                <><p className="eyebrow">{text.eyebrow}</p><h1>{resetToken ? text.resetTitle : isForgotPassword ? text.forgotTitle : isRegistering ? text.registerTitle : text.title}</h1><p className="form-subtitle">{resetToken ? text.resetSubtitle : isForgotPassword ? text.forgotSubtitle : isRegistering ? text.registerSubtitle : text.subtitle}</p>
+                  <form onSubmit={resetToken ? submitNewPassword : isForgotPassword ? requestPasswordReset : isRegistering ? register : login} noValidate>
                     {isRegistering ? <div className="registration-names"><label>{text.firstName}<input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={100} required disabled={isLoading} /></label><label>{text.lastName}<input value={lastName} onChange={(event) => setLastName(event.target.value)} maxLength={100} required disabled={isLoading} /></label></div> : null}
-                    <label htmlFor="email">{text.email}</label>
-                    <input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={text.emailPlaceholder} autoComplete="email" required disabled={isLoading} />
-                    <label htmlFor="password">{text.password}</label>
-                    <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete={isRegistering ? 'new-password' : 'current-password'} minLength={8} required disabled={isLoading} />
-                    {isRegistering ? <><label htmlFor="password-confirmation">{text.confirmPassword}</label><input id="password-confirmation" type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={8} required disabled={isLoading} /></> : <div className="form-options">
+                    {!resetToken ? <><label htmlFor="email">{text.email}</label><input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={text.emailPlaceholder} autoComplete="email" required disabled={isLoading} /></> : null}
+                    {!isForgotPassword ? <><label htmlFor="password">{resetToken ? text.newPassword : text.password}</label>
+                    <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete={isRegistering || resetToken ? 'new-password' : 'current-password'} minLength={8} required disabled={isLoading} /></> : null}
+                    {isRegistering || resetToken ? <><label htmlFor="password-confirmation">{text.confirmPassword}</label><input id="password-confirmation" type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={8} required disabled={isLoading} /></> : !isForgotPassword ? <div className="form-options">
                       <label className="checkbox-label"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} disabled={isLoading} /><span className="custom-checkbox" aria-hidden="true" />{text.remember}</label>
-                      <button className="text-button" type="button" title={text.phaseTwo} disabled>{text.forgot}</button>
-                    </div>}
+                      <button className="text-button" type="button" onClick={showForgotPassword}>{text.forgot}</button>
+                    </div> : null}
                     {error ? <p className="error-message" role="alert">{error}</p> : null}
                     {notice ? <p className="success-message" role="status">{notice}</p> : null}
-                    <button className="primary-button" type="submit" disabled={isLoading || !email || password.length < 8 || (isRegistering && (!firstName.trim() || !lastName.trim() || passwordConfirmation.length < 8))}>{isLoading ? (isRegistering ? text.registering : text.loading) : (isRegistering ? text.register : text.login)}</button>
+                    <button className="primary-button" type="submit" disabled={isLoading || (!resetToken && !email) || (!isForgotPassword && password.length < 8) || ((isRegistering || Boolean(resetToken)) && passwordConfirmation.length < 8) || (isRegistering && (!firstName.trim() || !lastName.trim()))}>{isLoading ? (resetToken ? text.resettingPassword : isForgotPassword ? text.sendingLink : isRegistering ? text.registering : text.loading) : (resetToken ? text.resetPassword : isForgotPassword ? text.sendLink : isRegistering ? text.register : text.login)}</button>
                   </form>
-                  <button className="account-switch" type="button" onClick={toggleRegistration}>{isRegistering ? text.haveAccount : text.createAccount}</button>
+                  <button className="account-switch" type="button" onClick={isForgotPassword || Boolean(resetToken) ? showLogin : toggleRegistration}>{isForgotPassword || resetToken ? text.backToLogin : isRegistering ? text.haveAccount : text.createAccount}</button>
                   <p className="security-note"><span aria-hidden="true">●</span> {text.secure}</p>
                 </>
               )}
