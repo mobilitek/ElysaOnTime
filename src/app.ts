@@ -3,6 +3,7 @@ import { Elysia } from 'elysia';
 import { database } from './database';
 import { auth } from './modules/auth';
 import { clientRoutes } from './modules/clients';
+import { dataImportRoutes } from './modules/data-import';
 import { projectRoutes } from './modules/projects';
 import { workEntryRoutes } from './modules/work-entries';
 
@@ -31,5 +32,6 @@ export const createApp = () =>
     })
     .use(auth)
     .use(clientRoutes)
+    .use(dataImportRoutes)
     .use(projectRoutes)
     .use(workEntryRoutes);

@@ -13,7 +13,7 @@ type Props = {
 
 const copy = {
   fr: {
-    workLog: 'Journal', clients: 'Mes clients', projects: 'Projets', profile: 'Profil', logout: 'Se déconnecter',
+    workLog: 'Journal', clients: 'Mes clients', projects: 'Projets', profile: 'Profil', logout: 'Se déconnecter', confidential: 'Confidentiel',
     title: 'Projets', subtitle: 'Organisez vos mandats et leurs taux horaires.', selectClient: 'Client',
     chooseClient: 'Choisir un client', noActiveClient: 'Aucun client actif.', manageClients: 'Gérer les clients',
     add: 'Ajouter un projet', name: 'Nom du projet', rate: 'Taux horaire', status: 'Statut', actions: 'Actions',
@@ -27,7 +27,7 @@ const copy = {
     updateHint: 'Le taux et la valeur des entrées non facturées seront recalculés.', toggle: 'Changer le statut de',
   },
   en: {
-    workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile', logout: 'Sign out',
+    workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile', logout: 'Sign out', confidential: 'Confidential',
     title: 'Projects', subtitle: 'Organize your engagements and hourly rates.', selectClient: 'Client',
     chooseClient: 'Choose a client', noActiveClient: 'No active clients.', manageClients: 'Manage clients',
     add: 'Add project', name: 'Project name', rate: 'Hourly rate', status: 'Status', actions: 'Actions',
@@ -57,6 +57,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
   const [rate, setRate] = useState('0.00');
   const [rateMode, setRateMode] = useState<RateMode>('future_only');
   const [error, setError] = useState<string | null>(null);
+  const [confidential, setConfidential] = useState(document.cookie.includes('ontime_confidential=true'));
 
   useEffect(() => {
     const load = async () => {
@@ -128,7 +129,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
     <header className="app-header">
       <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
       <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button><button type="button" onClick={onNavigateProfile}>{text.profile}</button></nav>
-      <div className="header-actions"><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div></div>
+      <div className="header-actions"><label className="confidential-switch"><input type="checkbox" checked={confidential} onChange={(event) => { setConfidential(event.target.checked); document.cookie = `ontime_confidential=${event.target.checked}; Max-Age=31536000; Path=/; SameSite=Lax`; }} />{text.confidential}</label><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div></div>
     </header>
     <section className="content-shell">
       <div className="page-heading"><div><p className="eyebrow">ONTIME</p><h1>{text.title}</h1><p>{text.subtitle}</p></div>{clientId ? <button className="add-button" type="button" onClick={openCreate}><span>+</span>{text.add}</button> : null}</div>
@@ -138,7 +139,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
         {!clientId ? <div className="empty-state"><span className="empty-icon">P</span><h2>{text.noActiveClient}</h2><button className="primary-button small" type="button" onClick={onNavigateClients}>{text.manageClients}</button></div>
           : isLoading ? <div className="empty-state"><span className="loading-ring" /></div>
             : projects.length === 0 ? <div className="empty-state"><span className="empty-icon">P</span><h2>{text.empty}</h2><p>{text.emptyHint}</p><button className="primary-button small" type="button" onClick={openCreate}>{text.add}</button></div>
-              : <div className="client-table project-table"><div className="client-row client-table-head"><span>{text.name}</span><span>{text.rate}</span><span>{text.status}</span><span className="action-column">{text.actions}</span></div>{projects.map((project) => <div className={`client-row ${project.isActive ? '' : 'inactive'}`} key={project.id}><div className="client-name"><span className="client-avatar">P</span><strong>{project.name}</strong></div><strong className="rate-value">${Number(project.hourlyRate).toFixed(2)}</strong><button className={`status-toggle ${project.isActive ? 'active' : ''}`} type="button" onClick={() => void toggle(project)} aria-label={`${text.toggle} ${project.name}`}><span className="toggle-track"><span /></span>{project.isActive ? text.active : text.inactive}</button><div className="action-column"><button className="edit-button" type="button" onClick={() => openEdit(project)}>{text.edit}</button></div></div>)}</div>}
+              : <div className={`client-table project-table ${confidential ? 'confidential-projects' : ''}`}><div className="client-row client-table-head"><span>{text.name}</span>{!confidential ? <span>{text.rate}</span> : null}<span>{text.status}</span><span className="action-column">{text.actions}</span></div>{projects.map((project) => <div className={`client-row ${project.isActive ? '' : 'inactive'}`} key={project.id}><div className="client-name"><span className="client-avatar">P</span><strong>{project.name}</strong></div>{!confidential ? <strong className="rate-value">${Number(project.hourlyRate).toFixed(2)}</strong> : null}<button className={`status-toggle ${project.isActive ? 'active' : ''}`} type="button" onClick={() => void toggle(project)} aria-label={`${text.toggle} ${project.name}`}><span className="toggle-track"><span /></span>{project.isActive ? text.active : text.inactive}</button><div className="action-column"><button className="edit-button" type="button" onClick={() => openEdit(project)}>{text.edit}</button></div></div>)}</div>}
       </div>
     </section>
     {isFormOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}><section className="client-modal project-modal" role="dialog" aria-modal="true"><div className="modal-heading"><div><p className="eyebrow">PROJET</p><h2>{editing ? text.editTitle : text.createTitle}</h2></div><button type="button" className="close-button" onClick={closeForm}>×</button></div><form onSubmit={save}><label htmlFor="project-name">{text.name}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoFocus /><label htmlFor="project-rate">{text.rate}</label><div className="money-input"><span>$</span><input id="project-rate" inputMode="decimal" value={rate} onChange={(event) => setRate(event.target.value)} /></div>{rateHasChanged ? <fieldset className="rate-choice"><legend>{text.rateChanged}</legend><label><input type="radio" checked={rateMode === 'future_only'} onChange={() => setRateMode('future_only')} /><span><strong>{text.futureOnly}</strong><small>{text.futureHint}</small></span></label><label><input type="radio" checked={rateMode === 'update_unbilled'} onChange={() => setRateMode('update_unbilled')} /><span><strong>{text.updateUnbilled}</strong><small>{text.updateHint}</small></span></label></fieldset> : null}{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button className="secondary-button" type="button" onClick={closeForm}>{text.cancel}</button><button className="primary-button" type="submit" disabled={isSaving || !name.trim() || !rate.trim()}>{editing ? text.save : text.create}</button></div></form></section></div> : null}

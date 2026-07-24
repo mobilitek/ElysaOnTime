@@ -15,7 +15,7 @@ const REQUIRED_HEADERS = [
   'Billed',
 ] as const;
 
-type LegacyEntry = {
+export type LegacyEntry = {
   sourceRow: number;
   clientName: string;
   projectName: string;
@@ -120,9 +120,7 @@ const duplicateSignature = (entry: LegacyEntry) =>
     entry.isBilled,
   ].join('\u001f');
 
-export const readLegacyWorkbook = async (file: string): Promise<LegacyEntry[]> => {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(file);
+const entriesFromWorkbook = (workbook: ExcelJS.Workbook): LegacyEntry[] => {
   const worksheet = workbook.worksheets[0];
   if (!worksheet) throw new Error('The workbook does not contain a worksheet');
   const headers = headerMap(worksheet);
@@ -173,10 +171,22 @@ export const readLegacyWorkbook = async (file: string): Promise<LegacyEntry[]> =
   return entries;
 };
 
+export const readLegacyWorkbook = async (file: string): Promise<LegacyEntry[]> => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(file);
+  return entriesFromWorkbook(workbook);
+};
+
+export const readLegacyWorkbookBuffer = async (buffer: ArrayBuffer): Promise<LegacyEntry[]> => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  return entriesFromWorkbook(workbook);
+};
+
 const projectKey = (clientName: string, projectName: string) =>
   `${clientName.trim().toLocaleLowerCase('fr-CA')}\u001f${projectName.trim().toLocaleLowerCase('fr-CA')}`;
 
-const summarize = (entries: LegacyEntry[]) => {
+export const summarizeLegacyEntries = (entries: LegacyEntry[]) => {
   const clientNames = new Set(entries.map((entry) => entry.clientName.toLocaleLowerCase('fr-CA')));
   const projectNames = new Set(entries.map((entry) => projectKey(entry.clientName, entry.projectName)));
   return {
@@ -195,7 +205,7 @@ const summarize = (entries: LegacyEntry[]) => {
 const run = async () => {
   const options = optionsFrom(process.argv.slice(2));
   const entries = await readLegacyWorkbook(options.file);
-  const summary = summarize(entries);
+  const summary = summarizeLegacyEntries(entries);
   const matchingUsers = await database
     .select({ id: users.id, email: users.email })
     .from(users)
@@ -311,4 +321,4 @@ const run = async () => {
   console.log(JSON.stringify({ status: 'complete', reconciliation }, null, 2));
 };
 
-await run().finally(closeDatabase);
+if (import.meta.main) await run().finally(closeDatabase);
