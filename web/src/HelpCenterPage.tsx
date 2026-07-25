@@ -16,7 +16,7 @@ type Props = {
   onBack: () => void;
 };
 
-export const CURRENT_VERSION = '0.1.0';
+export const CURRENT_VERSION = '0.2.0';
 
 export const HELP_CONTENT = {
   fr: {
@@ -24,14 +24,14 @@ export const HELP_CONTENT = {
     title: 'Comment pouvons-nous vous aider?',
     subtitle: 'Consultez le manuel complet, l’aide de votre écran ou les nouveautés d’OnTime.',
     manual: 'Manuel', page: 'Cette page', about: 'À propos',
-    version: 'Version actuelle', released: 'Version initiale',
+    version: 'Version actuelle', released: 'Mise à jour de juillet 2026',
     manualSections: [
       ['Bien démarrer', 'Créez votre compte pour profiter d’un essai gratuit de 7 jours. Ajoutez ensuite un client actif, puis au moins un projet actif avec son taux horaire. Vous pourrez alors consigner vos premières heures.'],
       ['Journal de travail', 'Utilisez les périodes Jour, Semaine, Mois, Année ou Personnalisé. Les flèches déplacent la période courante. Les filtres Client et Projet changent uniquement la liste affichée; ils ne sont pas obligatoires pour créer une entrée.'],
       ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date, les heures et une description. Une valeur entière comme 4 peut être convertie en 04:00 après votre confirmation. Les heures utilisent des blocs de 15 minutes.'],
       ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
       ['Banque d’heures', 'Activez la banque dans la fiche du projet, choisissez un solde initial et les limites quotidiennes et hebdomadaires propres à ce contrat. Dans une entrée, Heures travaillées représente le temps réel et Heures facturables le temps porté au projet; la différence alimente ou utilise la banque.'],
-      ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Votre choix est mémorisé dans le navigateur.'],
+      ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Dans une fiche projet, le taux peut être révélé temporairement avec le bouton prévu à cet effet. Votre choix est mémorisé dans le navigateur.'],
       ['Export Excel', 'L’export reprend la période et les filtres affichés. Il produit le format destiné au client, sans la colonne Facturé. Les lignes de description commençant par trois traits d’union ne sont pas exportées.'],
       ['Sauvegarde et restauration', 'Sauvegarder télécharge toutes vos données OnTime dans un fichier JSON. Restaurer analyse d’abord le fichier, présente un résumé, puis remplace uniquement vos clients, projets et entrées après une confirmation explicite.'],
       ['Clients et projets', 'Seuls les clients et projets actifs peuvent recevoir de nouvelles entrées. Un projet appartient obligatoirement à un client et porte son propre taux horaire. Les anciennes entrées conservent leur taux historique.'],
@@ -40,8 +40,8 @@ export const HELP_CONTENT = {
     ],
     pageHelp: {
       worklog: ['Journal de travail', ['Choisissez une période pour limiter les résultats.', 'Les filtres Client et Projet sont facultatifs.', 'Nouvelle entrée possède ses propres choix de client et de projet.', 'Sélectionnez des lignes uniquement pour inverser leur état Facturé.', 'Utilisez Afficher les supprimées pour restaurer une entrée.']],
-      clients: ['Mes clients', ['Ajoutez une organisation avec un nom unique.', 'Désactiver un client masque aussi ses projets et ses entrées du journal.', 'La banque d’heures et ses limites se configurent dans Modifier.', 'Un solde de banque peut devenir négatif.']],
-      projects: ['Projets', ['Sélectionnez d’abord le client à administrer.', 'Chaque projet possède un taux horaire en dollars canadiens.', 'Un projet inactif ne peut plus recevoir d’entrée.', 'Une modification de taux ne change pas les entrées historiques déjà facturées.']],
+      clients: ['Mes clients', ['Ajoutez une organisation avec un nom unique.', 'Désactiver un client masque aussi ses projets et ses entrées du journal.']],
+      projects: ['Projets', ['Sélectionnez d’abord le client à administrer.', 'Chaque projet possède son propre taux et sa propre configuration de banque d’heures.', 'En mode confidentiel, utilisez le contrôle du champ Taux pour le révéler temporairement.', 'Un projet inactif ne peut plus recevoir d’entrée.', 'Une modification de taux ne change pas les entrées historiques déjà facturées.']],
       profile: ['Profil', ['Modifiez ici votre nom, votre courriel et votre mot de passe.', 'Consultez les dates et le type de votre souscription.', 'L’historique présente les essais, périodes gratuites, paiements et ajustements.', 'Utilisez Demander un renouvellement pour communiquer avec OnTime.']],
       admin: ['Administration', ['Recherchez et modifiez les comptes utilisateurs.', 'Les statuts suspendu et désactivé bloquent la connexion.', 'Enregistrez les renouvellements avec leur type, période et statut de paiement.', 'Votre propre droit administrateur est protégé contre une suppression accidentelle.']],
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
@@ -51,7 +51,8 @@ export const HELP_CONTENT = {
       'Gestion complète des clients, projets, taux horaires et entrées.',
       'Export Excel compatible avec le format historique destiné aux clients.',
       'Mode confidentiel protégeant toutes les informations financières.',
-      'Banque d’heures avec temps réel, temps client et soldes hebdomadaires.',
+      'Banque d’heures propre à chaque projet avec temps réel, temps facturable et soldes hebdomadaires.',
+      'Protection du taux horaire dans les fiches projet lorsque le mode confidentiel est actif.',
       'Sauvegarde, restauration et import contrôlé des données.',
       'Comptes sécurisés, récupération du mot de passe et profils personnels.',
       'Souscriptions, essai gratuit de 7 jours et historique des renouvellements.',
@@ -64,14 +65,14 @@ export const HELP_CONTENT = {
     title: 'How can we help?',
     subtitle: 'Browse the complete manual, help for your current screen, or what is new in OnTime.',
     manual: 'Manual', page: 'This page', about: 'About',
-    version: 'Current version', released: 'Initial release',
+    version: 'Current version', released: 'July 2026 update',
     manualSections: [
       ['Getting started', 'Create your account to receive a free 7-day trial. Next, add an active client and at least one active project with its hourly rate. You can then record your first hours.'],
       ['Work log', 'Use Day, Week, Month, Year or Custom periods. The arrows move the current period. Client and Project filters only change the displayed list; they are not required to create an entry.'],
       ['Creating an entry', 'Select New entry, choose the client and project, then enter the date, hours and a description. A whole number such as 4 can be converted to 04:00 after confirmation. Hours use 15-minute increments.'],
       ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. Entries are deleted individually and can be restored with Show deleted.'],
       ['Hour bank', 'Enable the bank in the project record and choose the opening balance and daily and weekly limits for that contract. Worked hours is the actual time and Billable hours is the time assigned to the project; their difference adds to or uses the bank.'],
-      ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. Your choice is remembered by the browser.'],
+      ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. In a project record, the rate can be revealed temporarily with its dedicated button. Your choice is remembered by the browser.'],
       ['Excel export', 'The export follows the displayed period and filters. It produces the client-facing format without the Billed column. Description lines beginning with three hyphens are not exported.'],
       ['Backup and restore', 'Backup downloads all your OnTime data in a JSON file. Restore first analyzes the file and presents a summary, then replaces only your clients, projects and entries after explicit confirmation.'],
       ['Clients and projects', 'Only active clients and projects can receive new entries. A project must belong to a client and has its own hourly rate. Previous entries keep their historical rate.'],
@@ -81,7 +82,7 @@ export const HELP_CONTENT = {
     pageHelp: {
       worklog: ['Work log', ['Choose a period to narrow the results.', 'Client and Project filters are optional.', 'New entry has its own client and project choices.', 'Select rows only to toggle their Billed status.', 'Use Show deleted to restore an entry.']],
       clients: ['My clients', ['Add an organization with a unique name.', 'Disabling a client also hides its projects and entries from the log.']],
-      projects: ['Projects', ['First select the client you want to manage.', 'Each project has an hourly rate in Canadian dollars.', 'An inactive project cannot receive new entries.', 'A rate change does not alter historical billed entries.']],
+      projects: ['Projects', ['First select the client you want to manage.', 'Each project has its own rate and hour-bank settings.', 'In confidential mode, use the control in the Rate field to reveal it temporarily.', 'An inactive project cannot receive new entries.', 'A rate change does not alter historical billed entries.']],
       profile: ['Profile', ['Change your name, email and password here.', 'Review the dates and type of your subscription.', 'History shows trials, free periods, payments and adjustments.', 'Use Request renewal to contact OnTime.']],
       admin: ['Administration', ['Search for and edit user accounts.', 'Suspended and disabled statuses prevent sign-in.', 'Record renewals with their type, period and payment status.', 'Your own administrator permission is protected from accidental removal.']],
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
@@ -92,6 +93,7 @@ export const HELP_CONTENT = {
       'Excel exports compatible with the historical client-facing format.',
       'Confidential mode protecting all financial information.',
       'Project-based hour bank with actual time, billable time and weekly balances.',
+      'Hourly-rate protection in project records while confidential mode is enabled.',
       'Controlled data backup, restore and import.',
       'Secure accounts, password recovery and personal profiles.',
       'Subscriptions, a free 7-day trial and renewal history.',

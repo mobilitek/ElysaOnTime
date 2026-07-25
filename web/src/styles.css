@@ -308,6 +308,23 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .money-input { position: relative; }
 .money-input > span { position: absolute; top: 50%; left: 16px; z-index: 1; color: #68798b; transform: translateY(-50%); }
 .money-input input { padding-left: 34px; font-variant-numeric: tabular-nums; }
+.money-input.protected-rate-input input { padding-right: 58px; }
+.rate-visibility-button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 40px;
+  height: 38px;
+  border: 0;
+  border-radius: 9px;
+  color: #52677a;
+  background: #edf3f6;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transform: translateY(-50%);
+}
+.rate-visibility-button:hover,
+.rate-visibility-button:focus-visible { color: #147f8d; background: #e2f3f2; outline: 0; }
 .rate-choice { display: grid; gap: 10px; margin: 24px 0 0; padding: 0; border: 0; }
 .rate-choice legend { margin-bottom: 10px; color: #26384f; font-size: 0.88rem; font-weight: 750; }
 .rate-choice label { display: flex; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid #dce5eb; border-radius: 11px; cursor: pointer; }
