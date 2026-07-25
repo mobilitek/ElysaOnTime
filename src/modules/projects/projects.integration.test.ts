@@ -59,8 +59,8 @@ describe.skipIf(!runIntegrationTests)('projects integration', () => {
     if (!project) throw new Error('Expected project');
 
     await database.insert(workEntries).values([
-      { userId, projectId: project.id, workDate: '2026-07-17', durationMinutes: 90, description: 'Unbilled', hourlyRate: '85.00', amount: '127.50' },
-      { userId, projectId: project.id, workDate: '2026-07-16', durationMinutes: 60, description: 'Billed', hourlyRate: '85.00', amount: '85.00', isBilled: true },
+      { userId, projectId: project.id, workDate: '2026-07-17', durationMinutes: 90, clientMinutes: 90, description: 'Unbilled', hourlyRate: '85.00', amount: '127.50' },
+      { userId, projectId: project.id, workDate: '2026-07-16', durationMinutes: 60, clientMinutes: 60, description: 'Billed', hourlyRate: '85.00', amount: '85.00', isBilled: true },
     ]);
 
     const response = await createApp().handle(new Request(`http://localhost/api/projects/${project.id}`, {

@@ -6,9 +6,11 @@ const validBackup: BackupDocument = {
   version: BACKUP_VERSION,
   exportedAt: '2026-07-23T12:00:00.000Z',
   data: {
-    clients: [{ id: '10000000-0000-4000-8000-000000000001', name: 'Client', isActive: false, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }],
+    clients: [{ id: '10000000-0000-4000-8000-000000000001', name: 'Client', isActive: false, hourBankEnabled: false, hourBankStartDate: null, hourBankInitialMinutes: 0, maxDailyBillableMinutes: 480, maxWeeklyBillableMinutes: 2400, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }],
     projects: [{ id: '20000000-0000-4000-8000-000000000001', clientId: '10000000-0000-4000-8000-000000000001', name: 'Projet', hourlyRate: '125.50', isActive: true, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }],
-    workEntries: [{ id: '30000000-0000-4000-8000-000000000001', projectId: '20000000-0000-4000-8000-000000000001', workDate: '2026-07-23', durationMinutes: 60, description: 'Travail', hourlyRate: '125.50', amount: '125.50', isBilled: true, isDeleted: true, createdAt: '2026-07-23T12:00:00.000Z', updatedAt: '2026-07-23T13:00:00.000Z' }],
+    workEntries: [{ id: '30000000-0000-4000-8000-000000000001', projectId: '20000000-0000-4000-8000-000000000001', workDate: '2026-07-23', durationMinutes: 60, clientMinutes: 60, description: 'Travail', hourlyRate: '125.50', amount: '125.50', isBilled: true, isDeleted: true, createdAt: '2026-07-23T12:00:00.000Z', updatedAt: '2026-07-23T13:00:00.000Z' }],
+    hourBankClosures: [],
+    hourBankDays: [],
   },
 };
 

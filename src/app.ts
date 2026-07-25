@@ -3,9 +3,13 @@ import { Elysia } from 'elysia';
 import { config } from './config';
 import { database } from './database';
 import { auth } from './modules/auth';
+import { SESSION_COOKIE_NAME } from './modules/auth/constants';
+import { getSessionToken } from './modules/auth/cookie';
+import { getUserBySessionToken } from './modules/auth/service';
 import { backupRoutes } from './modules/backup';
 import { clientRoutes } from './modules/clients';
 import { dataImportRoutes } from './modules/data-import';
+import { hourBankRoutes } from './modules/hour-bank';
 import { projectRoutes } from './modules/projects';
 import { workEntryRoutes } from './modules/work-entries';
 
@@ -62,6 +66,12 @@ export const redirectHttpToHttps = (request: Request): Response | undefined => {
   return Response.redirect(destination, 308);
 };
 
+const environmentFromDatabase = (databaseName: string) => {
+  if (databaseName.endsWith('_dev')) return 'development';
+  if (databaseName.endsWith('_staging')) return 'staging';
+  return 'production';
+};
+
 export const createApp = () =>
   new Elysia({ name: 'ontime' })
     .onRequest(({ request }) =>
@@ -94,10 +104,40 @@ export const createApp = () =>
         };
       }
     })
+    .get('/api/system-info', async ({ cookie, set, status }) => {
+      const user = await getUserBySessionToken(
+        getSessionToken(cookie[SESSION_COOKIE_NAME].value),
+      );
+
+      if (!user) {
+        return status(401, { error: 'UNAUTHENTICATED' });
+      }
+
+      // Cette valeur vient de la connexion PostgreSQL active. Elle confirme donc
+      // la cible réelle de l'API plutôt que de répéter une configuration du client.
+      const result = await database.execute<{ databaseName: string }>(
+        sql`SELECT current_database() AS "databaseName"`,
+      );
+      const databaseName = result[0]?.databaseName;
+
+      if (!databaseName) {
+        return status(503, { error: 'DATABASE_UNAVAILABLE' });
+      }
+
+      // L'identité de la base peut changer lors d'un redémarrage local de l'API;
+      // le navigateur ne doit donc jamais réutiliser une ancienne réponse.
+      set.headers['cache-control'] = 'no-store';
+
+      return {
+        environment: environmentFromDatabase(databaseName),
+        database: databaseName,
+      };
+    })
     .use(auth)
     .use(backupRoutes)
     .use(clientRoutes)
     .use(dataImportRoutes)
+    .use(hourBankRoutes)
     .use(projectRoutes)
     .use(workEntryRoutes)
     .get('/*', ({ path, set }) => {

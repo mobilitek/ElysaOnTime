@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { database } from '../../database';
-import { clients, projects, workEntries } from '../../db/schema';
+import { clients, hourBankClosures, hourBankDays, projects, workEntries } from '../../db/schema';
 
 type ExportOptions = { from: string; to: string; clientId?: string; projectId?: string; includeDeleted: boolean; confidential: boolean; language: 'fr' | 'en' };
 type ExportUser = { id: string; firstName: string; lastName: string };
@@ -37,6 +37,27 @@ export const exportDescription = (description: string) => description
   .filter((line) => !line.trimStart().startsWith('---'))
   .join('\n');
 
+const bankHours = (minutes: number) => {
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+};
+
+const descriptionWithBankCode = (
+  description: string,
+  openingMinutes: number,
+  movementMinutes: number,
+  closingMinutes: number,
+) => {
+  const lines = exportDescription(description)
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*-\s*Code H\s*:/i.test(line));
+  const operation = movementMinutes === 0
+    ? ''
+    : ` (${bankHours(openingMinutes)}${movementMinutes > 0 ? '+' : '-'}${bankHours(Math.abs(movementMinutes))})`;
+  lines.splice(1, 0, `- Code H: ${bankHours(closingMinutes)}${operation}`);
+  return lines.join('\n');
+};
+
 export const exportWorkEntries = async (user: ExportUser, options: ExportOptions) => {
   // Les clients et projets inactifs sont invisibles dans l'application et sont
   // donc également exclus de l'export.
@@ -44,8 +65,62 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (options.clientId) conditions.push(eq(clients.id, options.clientId));
   if (options.projectId) conditions.push(eq(projects.id, options.projectId));
   if (!options.includeDeleted) conditions.push(eq(workEntries.isDeleted, false));
-  const rows = await database.select({ clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, description: workEntries.description, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount })
+  const rows = await database.select({ id: workEntries.id, clientId: clients.id, clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes, description: workEntries.description, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount, createdAt: workEntries.createdAt })
     .from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id)).where(and(...conditions)).orderBy(desc(workEntries.workDate), desc(workEntries.createdAt));
+
+  const clientIds = [...new Set(rows.map((row) => row.clientId))];
+  const bankConfigurations = clientIds.length
+    ? await database
+      .select({
+        id: clients.id,
+        startDate: clients.hourBankStartDate,
+        initialMinutes: clients.hourBankInitialMinutes,
+      })
+      .from(clients)
+      .where(and(
+        inArray(clients.id, clientIds),
+        eq(clients.userId, user.id),
+        eq(clients.hourBankEnabled, true),
+      ))
+    : [];
+  const bankDays = bankConfigurations.length
+    ? await database
+      .select({
+        clientId: hourBankClosures.clientId,
+        workDate: hourBankDays.workDate,
+        billedMinutes: hourBankDays.billedMinutes,
+        movementMinutes: hourBankDays.movementMinutes,
+      })
+      .from(hourBankDays)
+      .innerJoin(hourBankClosures, eq(hourBankDays.closureId, hourBankClosures.id))
+      .where(and(
+        eq(hourBankClosures.userId, user.id),
+        inArray(hourBankClosures.clientId, bankConfigurations.map((client) => client.id)),
+        lte(hourBankDays.workDate, options.to),
+      ))
+      .orderBy(asc(hourBankDays.workDate))
+    : [];
+  const bankByDate = new Map<string, {
+    openingMinutes: number;
+    closingMinutes: number;
+    movementMinutes: number;
+    billedMinutes: number;
+  }>();
+  for (const client of bankConfigurations) {
+    let balance = client.initialMinutes;
+    for (const day of bankDays.filter((item) => item.clientId === client.id)) {
+      const openingMinutes = balance;
+      balance += day.movementMinutes;
+      if (client.startDate && day.workDate >= client.startDate) {
+        bankByDate.set(`${client.id}:${day.workDate}`, {
+          openingMinutes,
+          closingMinutes: balance,
+          movementMinutes: day.movementMinutes,
+          billedMinutes: day.billedMinutes,
+        });
+      }
+    }
+  }
 
   // Les colonnes d'identification deviennent inutiles lorsqu'un filtre désigne
   // déjà précisément le client ou le projet.
@@ -67,16 +142,31 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (!options.confidential) columns.push({ header: text.rate, key: 'rate', width: 14 }, { header: text.value, key: 'value', width: 16 });
   sheet.columns = columns;
   for (const row of rows) {
-    const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description: exportDescription(row.description), hours: row.durationMinutes / 1440 };
+    const bank = bankByDate.get(`${row.clientId}:${row.workDate}`);
+    // L'export destiné au client utilise directement le temps client enregistré
+    // sur chaque entrée; le temps réellement travaillé demeure interne.
+    const durationMinutes = row.clientMinutes;
+    const description = bank
+      ? descriptionWithBankCode(
+        row.description,
+        bank.openingMinutes,
+        bank.movementMinutes,
+        bank.closingMinutes,
+      )
+      : exportDescription(row.description);
+    const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description, hours: durationMinutes / 1440 };
     if (showClient) value.client = row.clientName; if (showProject) value.project = row.projectName;
-    if (!options.confidential) { value.rate = Number(row.hourlyRate); value.value = Number(row.amount); }
+    if (!options.confidential) { value.rate = Number(row.hourlyRate); value.value = (durationMinutes / 60) * Number(row.hourlyRate); }
     sheet.addRow(value);
   }
   if (!options.confidential && rows.length) {
     // Le total utilise une formule Excel et inclut aussi son résultat calculé
     // afin que les lecteurs ne recalculant pas les formules affichent la valeur.
-    const totalHours = rows.reduce((sum, row) => sum + row.durationMinutes, 0) / 1440;
-    const totalValue = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+    const totalHours = rows.reduce((sum, row) => sum + row.clientMinutes, 0) / 1440;
+    const totalValue = rows.reduce((sum, row) => {
+      const duration = row.clientMinutes;
+      return sum + (duration / 60) * Number(row.hourlyRate);
+    }, 0);
     const totalRow = sheet.addRow({ description: text.total, hours: { formula: `SUM(${sheet.getColumn('hours').letter}2:${sheet.getColumn('hours').letter}${rows.length + 1})`, result: totalHours }, value: { formula: `SUM(${sheet.getColumn('value').letter}2:${sheet.getColumn('value').letter}${rows.length + 1})`, result: totalValue } });
     totalRow.font = { bold: true, color: { argb: 'FF17324D' } }; totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF3FF' } };
   }

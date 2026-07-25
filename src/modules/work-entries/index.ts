@@ -2,18 +2,26 @@ import { Elysia, t } from 'elysia';
 import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
 import { getUserBySessionToken } from '../auth/service';
-import { createEntry, duplicateEntry, EntryNotFoundError, InvalidDescriptionError, InvalidDurationError, listEntries, ProjectUnavailableError, toggleEntries, updateEntry } from './service';
+import { ClientTimeLimitError, createEntry, duplicateEntry, EntryNotFoundError, InvalidDescriptionError, InvalidDurationError, listEntries, ProjectUnavailableError, toggleEntries, updateEntry } from './service';
 import { exportWorkEntries } from './export';
 
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
 const date = t.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' });
-const entryBody = t.Object({ workDate: date, durationMinutes: t.Integer({ minimum: 15 }), description: t.String({ minLength: 1 }) });
+const entryBody = t.Object({
+  workDate: date,
+  durationMinutes: t.Integer({ minimum: 0 }),
+  clientMinutes: t.Optional(t.Integer({ minimum: 0 })),
+  description: t.String({ minLength: 1 }),
+});
 
 /** Traduit les erreurs métier connues en réponses HTTP stables pour le frontend. */
 const errors = (error: unknown, status: (code: number, body: unknown) => unknown) => {
   if (error instanceof EntryNotFoundError) return status(404, { error: 'ENTRY_NOT_FOUND' });
   if (error instanceof ProjectUnavailableError) return status(422, { error: 'PROJECT_UNAVAILABLE' });
   if (error instanceof InvalidDurationError) return status(422, { error: 'INVALID_DURATION' });
+  if (error instanceof ClientTimeLimitError) {
+    return status(422, { error: 'CLIENT_TIME_LIMIT', message: error.message });
+  }
   if (error instanceof InvalidDescriptionError) return status(422, { error: 'DESCRIPTION_REQUIRED' });
   throw error;
 };

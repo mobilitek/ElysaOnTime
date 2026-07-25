@@ -85,6 +85,11 @@ export const clients = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     name: varchar('name', { length: 200 }).notNull(),
     isActive: boolean('is_active').notNull().default(true),
+    hourBankEnabled: boolean('hour_bank_enabled').notNull().default(false),
+    hourBankStartDate: date('hour_bank_start_date', { mode: 'string' }),
+    hourBankInitialMinutes: integer('hour_bank_initial_minutes').notNull().default(0),
+    maxDailyBillableMinutes: integer('max_daily_billable_minutes').notNull().default(480),
+    maxWeeklyBillableMinutes: integer('max_weekly_billable_minutes').notNull().default(2400),
     ...timestamps,
   },
   (table) => [
@@ -96,6 +101,12 @@ export const clients = pgTable(
     ),
     index('clients_user_active_idx').on(table.userId, table.isActive),
     check('clients_name_not_blank', sql`length(trim(${table.name})) > 0`),
+    check('clients_daily_billable_positive', sql`${table.maxDailyBillableMinutes} > 0`),
+    check('clients_weekly_billable_positive', sql`${table.maxWeeklyBillableMinutes} > 0`),
+    check(
+      'clients_hour_bank_start_required',
+      sql`not ${table.hourBankEnabled} or ${table.hourBankStartDate} is not null`,
+    ),
   ],
 );
 
@@ -136,6 +147,9 @@ export const workEntries = pgTable(
       .references(() => projects.id, { onDelete: 'restrict' }),
     workDate: date('work_date', { mode: 'string' }).notNull(),
     durationMinutes: integer('duration_minutes').notNull(),
+    // Temps présenté au client. Il peut différer du temps réellement travaillé
+    // lorsque la banque d'heures du client est activée.
+    clientMinutes: integer('client_minutes').notNull().default(0),
     description: text('description').notNull(),
     hourlyRate: numeric('hourly_rate', { precision: 12, scale: 2 }).notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
@@ -159,7 +173,63 @@ export const workEntries = pgTable(
       'work_entries_duration_valid',
       sql`${table.durationMinutes} >= 0`,
     ),
+    check('work_entries_client_minutes_valid', sql`${table.clientMinutes} >= 0`),
     check('work_entries_description_not_blank', sql`length(trim(${table.description})) > 0`),
+  ],
+);
+
+export const hourBankClosures = pgTable(
+  'hour_bank_closures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'restrict' }),
+    weekStart: date('week_start', { mode: 'string' }).notNull(),
+    weekEnd: date('week_end', { mode: 'string' }).notNull(),
+    actualMinutes: integer('actual_minutes').notNull(),
+    billedMinutes: integer('billed_minutes').notNull(),
+    movementMinutes: integer('movement_minutes').notNull(),
+    note: text('note').notNull().default(''),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('hour_bank_closures_client_week_unique').on(table.clientId, table.weekStart),
+    index('hour_bank_closures_user_client_idx').on(table.userId, table.clientId),
+    check('hour_bank_closures_actual_non_negative', sql`${table.actualMinutes} >= 0`),
+    check('hour_bank_closures_billed_non_negative', sql`${table.billedMinutes} >= 0`),
+    check(
+      'hour_bank_closures_movement_consistent',
+      sql`${table.movementMinutes} = ${table.actualMinutes} - ${table.billedMinutes}`,
+    ),
+  ],
+);
+
+export const hourBankDays = pgTable(
+  'hour_bank_days',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    closureId: uuid('closure_id')
+      .notNull()
+      .references(() => hourBankClosures.id, { onDelete: 'cascade' }),
+    workDate: date('work_date', { mode: 'string' }).notNull(),
+    actualMinutes: integer('actual_minutes').notNull(),
+    billedMinutes: integer('billed_minutes').notNull(),
+    movementMinutes: integer('movement_minutes').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('hour_bank_days_closure_date_unique').on(table.closureId, table.workDate),
+    index('hour_bank_days_date_idx').on(table.workDate),
+    check('hour_bank_days_actual_non_negative', sql`${table.actualMinutes} >= 0`),
+    check('hour_bank_days_billed_non_negative', sql`${table.billedMinutes} >= 0`),
+    check(
+      'hour_bank_days_movement_consistent',
+      sql`${table.movementMinutes} = ${table.actualMinutes} - ${table.billedMinutes}`,
+    ),
   ],
 );
 
@@ -170,6 +240,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   passwordResetTokens: many(passwordResetTokens),
   clients: many(clients),
   workEntries: many(workEntries),
+  hourBankClosures: many(hourBankClosures),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -192,6 +263,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
     references: [users.id],
   }),
   projects: many(projects),
+  hourBankClosures: many(hourBankClosures),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -210,5 +282,24 @@ export const workEntriesRelations = relations(workEntries, ({ one }) => ({
   project: one(projects, {
     fields: [workEntries.projectId],
     references: [projects.id],
+  }),
+}));
+
+export const hourBankClosuresRelations = relations(hourBankClosures, ({ one, many }) => ({
+  user: one(users, {
+    fields: [hourBankClosures.userId],
+    references: [users.id],
+  }),
+  client: one(clients, {
+    fields: [hourBankClosures.clientId],
+    references: [clients.id],
+  }),
+  days: many(hourBankDays),
+}));
+
+export const hourBankDaysRelations = relations(hourBankDays, ({ one }) => ({
+  closure: one(hourBankClosures, {
+    fields: [hourBankDays.closureId],
+    references: [hourBankClosures.id],
   }),
 }));

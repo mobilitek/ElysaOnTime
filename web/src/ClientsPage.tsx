@@ -1,12 +1,20 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string };
-type Client = { id: string; name: string; isActive: boolean; createdAt: string; updatedAt: string };
+type Client = {
+  id: string; name: string; isActive: boolean;
+  hourBankEnabled: boolean; hourBankStartDate: string | null;
+  hourBankInitialMinutes: number; maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number; createdAt: string; updatedAt: string;
+};
 
 type Props = {
   language: Language;
   user: User;
+  systemInfo: SystemInfo | null;
+  systemInfoError: boolean;
   onLanguageChange: (language: Language) => void;
   onLogout: () => Promise<void>;
   onNavigateWorkLog: () => void;
@@ -25,6 +33,10 @@ const copy = {
     create: 'Créer le client', required: 'Le nom du client est obligatoire.',
     duplicate: 'Un client portant ce nom existe déjà.', error: 'Une erreur est survenue. Réessayez.',
     logout: 'Se déconnecter', loading: 'Chargement…', toggle: 'Changer le statut de',
+    bank: 'Banque d’heures', bankEnabled: 'Activer la banque d’heures',
+    bankStart: 'Date de début', initialBalance: 'Solde initial (HH:MM)',
+    dailyMaximum: 'Maximum quotidien (HH:MM)', weeklyMaximum: 'Maximum hebdomadaire (HH:MM)',
+    invalidBank: 'Vérifiez la date et les valeurs de la banque d’heures.',
   },
   en: {
     workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile',
@@ -36,10 +48,23 @@ const copy = {
     create: 'Create client', required: 'Client name is required.',
     duplicate: 'A client with this name already exists.', error: 'Something went wrong. Please try again.',
     logout: 'Sign out', loading: 'Loading…', toggle: 'Change status for',
+    bank: 'Hour bank', bankEnabled: 'Enable hour bank', bankStart: 'Start date',
+    initialBalance: 'Initial balance (HH:MM)', dailyMaximum: 'Daily maximum (HH:MM)',
+    weeklyMaximum: 'Weekly maximum (HH:MM)', invalidBank: 'Check the hour-bank date and values.',
   },
 } as const;
 
-export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile }: Props) {
+const time = (minutes: number) => {
+  const sign = minutes < 0 ? '-' : '';
+  const absolute = Math.abs(minutes);
+  return `${sign}${String(Math.floor(absolute / 60)).padStart(2, '0')}:${String(absolute % 60).padStart(2, '0')}`;
+};
+const minutes = (value: string) => {
+  const match = /^(-)?(\d+):([0-5]\d)$/.exec(value.trim());
+  return match ? (match[1] ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : null;
+};
+
+export function ClientsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +72,11 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [name, setName] = useState('');
+  const [hourBankEnabled, setHourBankEnabled] = useState(false);
+  const [hourBankStartDate, setHourBankStartDate] = useState('');
+  const [hourBankInitial, setHourBankInitial] = useState('00:00');
+  const [maxDaily, setMaxDaily] = useState('08:00');
+  const [maxWeekly, setMaxWeekly] = useState('40:00');
   const [error, setError] = useState<string | null>(null);
 
   const loadClients = async () => {
@@ -66,10 +96,16 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
   useEffect(() => { void loadClients(); }, []);
 
   const openCreate = () => {
-    setEditingClient(null); setName(''); setError(null); setIsFormOpen(true);
+    setEditingClient(null); setName(''); setHourBankEnabled(false); setError(null); setIsFormOpen(true);
   };
   const openEdit = (client: Client) => {
-    setEditingClient(client); setName(client.name); setError(null); setIsFormOpen(true);
+    setEditingClient(client); setName(client.name);
+    setHourBankEnabled(client.hourBankEnabled);
+    setHourBankStartDate(client.hourBankStartDate ?? new Date().toISOString().slice(0, 10));
+    setHourBankInitial(time(client.hourBankInitialMinutes));
+    setMaxDaily(time(client.maxDailyBillableMinutes));
+    setMaxWeekly(time(client.maxWeeklyBillableMinutes));
+    setError(null); setIsFormOpen(true);
   };
   const closeForm = () => { setIsFormOpen(false); setEditingClient(null); setError(null); };
 
@@ -78,11 +114,35 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
     event.preventDefault();
     const normalizedName = name.trim();
     if (!normalizedName) { setError(text.required); return; }
+    const initialMinutes = minutes(hourBankInitial);
+    const dailyMinutes = minutes(maxDaily);
+    const weeklyMinutes = minutes(maxWeekly);
+    if (editingClient && (
+      (hourBankEnabled && !hourBankStartDate)
+      || initialMinutes === null
+      || dailyMinutes === null
+      || weeklyMinutes === null
+      || dailyMinutes <= 0
+      || weeklyMinutes <= 0
+    )) {
+      setError(text.invalidBank);
+      return;
+    }
     setIsSaving(true); setError(null);
     try {
       const response = await fetch(editingClient ? `/api/clients/${editingClient.id}` : '/api/clients', {
         method: editingClient ? 'PATCH' : 'POST', credentials: 'include',
-        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: normalizedName }),
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: normalizedName,
+          ...(editingClient ? {
+            hourBankEnabled,
+            hourBankStartDate: hourBankEnabled ? hourBankStartDate : null,
+            hourBankInitialMinutes: initialMinutes,
+            maxDailyBillableMinutes: dailyMinutes,
+            maxWeeklyBillableMinutes: weeklyMinutes,
+          } : {}),
+        }),
       });
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
@@ -128,7 +188,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
           <div className="language-switch compact">
             {(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}
           </div>
-          <div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div>
+          <UserEnvironmentChip user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} logoutLabel={text.logout} onLogout={onLogout} />
         </div>
       </header>
 
@@ -142,7 +202,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
               : <div className="client-table" role="table" aria-label={text.title}>
                   <div className="client-row client-table-head" role="row"><span role="columnheader">{text.name}</span><span role="columnheader">{text.status}</span><span role="columnheader" className="action-column">{text.actions}</span></div>
                   {clients.map((client) => <div className={`client-row ${client.isActive ? '' : 'inactive'}`} role="row" key={client.id}>
-                    <div className="client-name" role="cell"><span className="client-avatar">{client.name.slice(0, 2).toUpperCase()}</span><strong>{client.name}</strong></div>
+                    <div className="client-name" role="cell"><span className="client-avatar">{client.name.slice(0, 2).toUpperCase()}</span><span><strong>{client.name}</strong>{client.hourBankEnabled ? <small className="bank-enabled-label">{text.bank}</small> : null}</span></div>
                     <div role="cell"><button className={`status-toggle ${client.isActive ? 'active' : ''}`} type="button" onClick={() => void toggleClient(client)} aria-label={`${text.toggle} ${client.name}`}><span className="toggle-track"><span /></span>{client.isActive ? text.active : text.inactive}</button></div>
                     <div className="action-column" role="cell"><button className="edit-button" type="button" onClick={() => openEdit(client)}>{text.edit}</button></div>
                   </div>)}
@@ -154,6 +214,7 @@ export function ClientsPage({ language, user, onLanguageChange, onLogout, onNavi
         <section className="client-modal" role="dialog" aria-modal="true" aria-labelledby="client-form-title">
           <div className="modal-heading"><div><p className="eyebrow">CLIENT</p><h2 id="client-form-title">{editingClient ? text.editTitle : text.createTitle}</h2></div><button type="button" className="close-button" onClick={closeForm} aria-label={text.cancel}>×</button></div>
           <form onSubmit={saveClient}><label htmlFor="client-name">{text.name}</label><input id="client-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoFocus disabled={isSaving} />
+            {editingClient ? <fieldset className="hour-bank-settings"><legend>{text.bank}</legend><label className="bank-enable"><input type="checkbox" checked={hourBankEnabled} onChange={(event) => setHourBankEnabled(event.target.checked)} />{text.bankEnabled}</label>{hourBankEnabled ? <div className="bank-setting-grid"><label>{text.bankStart}<input type="date" value={hourBankStartDate} onChange={(event) => setHourBankStartDate(event.target.value)} /></label><label>{text.initialBalance}<input value={hourBankInitial} onChange={(event) => setHourBankInitial(event.target.value)} placeholder="00:00" /></label><label>{text.dailyMaximum}<input value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} placeholder="08:00" /></label><label>{text.weeklyMaximum}<input value={maxWeekly} onChange={(event) => setMaxWeekly(event.target.value)} placeholder="40:00" /></label></div> : null}</fieldset> : null}
             {error ? <p className="error-message" role="alert">{error}</p> : null}
             <div className="modal-actions"><button type="button" className="secondary-button" onClick={closeForm} disabled={isSaving}>{text.cancel}</button><button type="submit" className="primary-button" disabled={isSaving || !name.trim()}>{editingClient ? text.save : text.create}</button></div>
           </form>

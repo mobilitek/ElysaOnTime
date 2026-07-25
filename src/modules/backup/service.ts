@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { database } from '../../database';
-import { clients, projects, workEntries } from '../../db/schema';
+import {
+  clients,
+  hourBankClosures,
+  hourBankDays,
+  projects,
+  workEntries,
+} from '../../db/schema';
 
 export const BACKUP_FORMAT = 'ontime-backup';
 export const BACKUP_VERSION = 1;
@@ -18,18 +24,29 @@ type BackupClient = {
   id: string;
   name: string;
   isActive: boolean;
+  hourBankEnabled: boolean;
+  hourBankStartDate: string | null;
+  hourBankInitialMinutes: number;
+  maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number;
   createdAt: string;
   updatedAt: string;
 };
-type BackupProject = BackupClient & {
+type BackupProject = {
+  id: string;
   clientId: string;
+  name: string;
   hourlyRate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 type BackupEntry = {
   id: string;
   projectId: string;
   workDate: string;
   durationMinutes: number;
+  clientMinutes: number;
   description: string;
   hourlyRate: string;
   amount: string;
@@ -37,6 +54,27 @@ type BackupEntry = {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+};
+type BackupClosure = {
+  id: string;
+  clientId: string;
+  weekStart: string;
+  weekEnd: string;
+  actualMinutes: number;
+  billedMinutes: number;
+  movementMinutes: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+};
+type BackupHourBankDay = {
+  id: string;
+  closureId: string;
+  workDate: string;
+  actualMinutes: number;
+  billedMinutes: number;
+  movementMinutes: number;
+  createdAt: string;
 };
 export type BackupDocument = {
   format: typeof BACKUP_FORMAT;
@@ -46,6 +84,8 @@ export type BackupDocument = {
     clients: BackupClient[];
     projects: BackupProject[];
     workEntries: BackupEntry[];
+    hourBankClosures: BackupClosure[];
+    hourBankDays: BackupHourBankDay[];
   };
 };
 
@@ -60,6 +100,12 @@ const requiredString = (value: unknown, field: string, pattern?: RegExp) => {
 const requiredBoolean = (value: unknown, field: string) => {
   if (typeof value !== 'boolean') throw new InvalidBackupFileError(`INVALID_${field.toUpperCase()}`);
   return value;
+};
+const integer = (value: unknown, field: string, minimum?: number) => {
+  if (!Number.isInteger(value) || (minimum !== undefined && Number(value) < minimum)) {
+    throw new InvalidBackupFileError(`INVALID_${field.toUpperCase()}`);
+  }
+  return Number(value);
 };
 const timestamp = (value: unknown, field: string) => {
   const text = requiredString(value, field);
@@ -81,7 +127,11 @@ export const validateBackup = (value: unknown): BackupDocument => {
   const rawClients = value.data.clients;
   const rawProjects = value.data.projects;
   const rawEntries = value.data.workEntries;
-  if (!Array.isArray(rawClients) || !Array.isArray(rawProjects) || !Array.isArray(rawEntries)) {
+  // Ces collections et propriétés sont facultatives dans les sauvegardes
+  // créées avant l'introduction de la banque d'heures.
+  const rawClosures = value.data.hourBankClosures ?? [];
+  const rawDays = value.data.hourBankDays ?? [];
+  if (!Array.isArray(rawClients) || !Array.isArray(rawProjects) || !Array.isArray(rawEntries) || !Array.isArray(rawClosures) || !Array.isArray(rawDays)) {
     throw new InvalidBackupFileError('INVALID_BACKUP_DATA');
   }
 
@@ -91,6 +141,21 @@ export const validateBackup = (value: unknown): BackupDocument => {
       id: requiredString(row.id, 'client_id', uuidPattern),
       name: requiredString(row.name, 'client_name'),
       isActive: requiredBoolean(row.isActive, 'client_active'),
+      hourBankEnabled: row.hourBankEnabled === undefined
+        ? false
+        : requiredBoolean(row.hourBankEnabled, 'client_hour_bank_enabled'),
+      hourBankStartDate: row.hourBankStartDate === undefined || row.hourBankStartDate === null
+        ? null
+        : requiredString(row.hourBankStartDate, 'client_hour_bank_start_date', datePattern),
+      hourBankInitialMinutes: row.hourBankInitialMinutes === undefined
+        ? 0
+        : integer(row.hourBankInitialMinutes, 'client_hour_bank_initial_minutes'),
+      maxDailyBillableMinutes: row.maxDailyBillableMinutes === undefined
+        ? 480
+        : integer(row.maxDailyBillableMinutes, 'client_daily_maximum', 1),
+      maxWeeklyBillableMinutes: row.maxWeeklyBillableMinutes === undefined
+        ? 2400
+        : integer(row.maxWeeklyBillableMinutes, 'client_weekly_maximum', 1),
       createdAt: timestamp(row.createdAt, 'client_created_at'),
       updatedAt: timestamp(row.updatedAt, 'client_updated_at'),
     };
@@ -118,6 +183,9 @@ export const validateBackup = (value: unknown): BackupDocument => {
       projectId: requiredString(row.projectId, 'entry_project_id', uuidPattern),
       workDate: requiredString(row.workDate, 'work_date', datePattern),
       durationMinutes: Number(durationMinutes),
+      clientMinutes: row.clientMinutes === undefined
+        ? Number(durationMinutes)
+        : integer(row.clientMinutes, 'entry_client_minutes', 0),
       description: requiredString(row.description, 'description'),
       // Les imports historiques peuvent légitimement contenir des ajustements négatifs.
       hourlyRate: requiredString(row.hourlyRate, 'entry_hourly_rate', signedDecimalPattern),
@@ -128,22 +196,66 @@ export const validateBackup = (value: unknown): BackupDocument => {
       updatedAt: timestamp(row.updatedAt, 'entry_updated_at'),
     };
   });
+  const parsedClosures = rawClosures.map((row) => {
+    if (!isRecord(row)) throw new InvalidBackupFileError('INVALID_HOUR_BANK_CLOSURE');
+    return {
+      id: requiredString(row.id, 'closure_id', uuidPattern),
+      clientId: requiredString(row.clientId, 'closure_client_id', uuidPattern),
+      weekStart: requiredString(row.weekStart, 'closure_week_start', datePattern),
+      weekEnd: requiredString(row.weekEnd, 'closure_week_end', datePattern),
+      actualMinutes: integer(row.actualMinutes, 'closure_actual_minutes', 0),
+      billedMinutes: integer(row.billedMinutes, 'closure_billed_minutes', 0),
+      movementMinutes: integer(row.movementMinutes, 'closure_movement_minutes'),
+      note: typeof row.note === 'string' ? row.note : '',
+      createdAt: timestamp(row.createdAt, 'closure_created_at'),
+      updatedAt: timestamp(row.updatedAt, 'closure_updated_at'),
+    };
+  });
+  const parsedDays = rawDays.map((row) => {
+    if (!isRecord(row)) throw new InvalidBackupFileError('INVALID_HOUR_BANK_DAY');
+    return {
+      id: requiredString(row.id, 'hour_bank_day_id', uuidPattern),
+      closureId: requiredString(row.closureId, 'hour_bank_day_closure_id', uuidPattern),
+      workDate: requiredString(row.workDate, 'hour_bank_day_date', datePattern),
+      actualMinutes: integer(row.actualMinutes, 'hour_bank_day_actual_minutes', 0),
+      billedMinutes: integer(row.billedMinutes, 'hour_bank_day_billed_minutes', 0),
+      movementMinutes: integer(row.movementMinutes, 'hour_bank_day_movement_minutes'),
+      createdAt: timestamp(row.createdAt, 'hour_bank_day_created_at'),
+    };
+  });
 
   uniqueIds(parsedClients, 'client');
   uniqueIds(parsedProjects, 'project');
   uniqueIds(parsedEntries, 'entry');
+  uniqueIds(parsedClosures, 'closure');
+  uniqueIds(parsedDays, 'hour_bank_day');
   const clientIds = new Set(parsedClients.map((row) => row.id));
   const projectIds = new Set(parsedProjects.map((row) => row.id));
+  const closureIds = new Set(parsedClosures.map((row) => row.id));
   // Vérifier les références avant la transaction produit des erreurs lisibles
   // et empêche toute restauration partielle ou incohérente.
   if (parsedProjects.some((row) => !clientIds.has(row.clientId))) throw new InvalidBackupFileError('UNKNOWN_CLIENT');
   if (parsedEntries.some((row) => !projectIds.has(row.projectId))) throw new InvalidBackupFileError('UNKNOWN_PROJECT');
+  if (parsedClosures.some((row) => !clientIds.has(row.clientId))) throw new InvalidBackupFileError('UNKNOWN_CLOSURE_CLIENT');
+  if (parsedDays.some((row) => !closureIds.has(row.closureId))) throw new InvalidBackupFileError('UNKNOWN_HOUR_BANK_CLOSURE');
+  if (parsedClosures.some((row) => row.movementMinutes !== row.actualMinutes - row.billedMinutes)) {
+    throw new InvalidBackupFileError('INVALID_CLOSURE_MOVEMENT');
+  }
+  if (parsedDays.some((row) => row.movementMinutes !== row.actualMinutes - row.billedMinutes)) {
+    throw new InvalidBackupFileError('INVALID_HOUR_BANK_DAY_MOVEMENT');
+  }
 
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: timestamp(value.exportedAt, 'exported_at'),
-    data: { clients: parsedClients, projects: parsedProjects, workEntries: parsedEntries },
+    data: {
+      clients: parsedClients,
+      projects: parsedProjects,
+      workEntries: parsedEntries,
+      hourBankClosures: parsedClosures,
+      hourBankDays: parsedDays,
+    },
   };
 };
 
@@ -187,6 +299,11 @@ export const createBackup = async (userId: string): Promise<BackupDocument> => {
     ? await database.select().from(projects).where(inArray(projects.clientId, clientIds)).orderBy(asc(projects.createdAt))
     : [];
   const entryRows = await database.select().from(workEntries).where(eq(workEntries.userId, userId)).orderBy(asc(workEntries.createdAt));
+  const closureRows = await database.select().from(hourBankClosures).where(eq(hourBankClosures.userId, userId)).orderBy(asc(hourBankClosures.weekStart));
+  const closureIds = closureRows.map((row) => row.id);
+  const dayRows = closureIds.length
+    ? await database.select().from(hourBankDays).where(inArray(hourBankDays.closureId, closureIds)).orderBy(asc(hourBankDays.workDate))
+    : [];
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -195,6 +312,8 @@ export const createBackup = async (userId: string): Promise<BackupDocument> => {
       clients: clientRows.map(({ userId: _userId, createdAt, updatedAt, ...row }) => ({ ...row, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() })),
       projects: projectRows.map(({ createdAt, updatedAt, ...row }) => ({ ...row, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() })),
       workEntries: entryRows.map(({ userId: _userId, createdAt, updatedAt, ...row }) => ({ ...row, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() })),
+      hourBankClosures: closureRows.map(({ userId: _userId, createdAt, updatedAt, ...row }) => ({ ...row, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() })),
+      hourBankDays: dayRows.map(({ createdAt, ...row }) => ({ ...row, createdAt: createdAt.toISOString() })),
     },
   };
 };
@@ -207,6 +326,7 @@ export const restoreBackup = async (userId: string, backup: BackupDocument) => {
     const currentClients = await transaction.select({ id: clients.id }).from(clients).where(eq(clients.userId, userId));
     const currentClientIds = currentClients.map((row) => row.id);
     await transaction.delete(workEntries).where(eq(workEntries.userId, userId));
+    await transaction.delete(hourBankClosures).where(eq(hourBankClosures.userId, userId));
     if (currentClientIds.length) {
       await transaction.delete(projects).where(inArray(projects.clientId, currentClientIds));
       await transaction.delete(clients).where(inArray(clients.id, currentClientIds));
@@ -224,6 +344,16 @@ export const restoreBackup = async (userId: string, backup: BackupDocument) => {
     if (backup.data.workEntries.length) {
       await transaction.insert(workEntries).values(backup.data.workEntries.map((row) => ({
         ...row, userId, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt),
+      })));
+    }
+    if (backup.data.hourBankClosures.length) {
+      await transaction.insert(hourBankClosures).values(backup.data.hourBankClosures.map((row) => ({
+        ...row, userId, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt),
+      })));
+    }
+    if (backup.data.hourBankDays.length) {
+      await transaction.insert(hourBankDays).values(backup.data.hourBankDays.map((row) => ({
+        ...row, createdAt: new Date(row.createdAt),
       })));
     }
   });

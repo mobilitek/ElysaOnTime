@@ -99,6 +99,17 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
     );
     expect(sessionResponse.status).toBe(200);
 
+    const systemInfoResponse = await app.handle(
+      new Request('http://localhost/api/system-info', {
+        headers: { cookie: sessionCookie },
+      }),
+    );
+    expect(systemInfoResponse.status).toBe(200);
+    expect(await systemInfoResponse.json()).toEqual({
+      environment: 'development',
+      database: 'ontime_dev',
+    });
+
     const logoutResponse = await app.handle(
       new Request('http://localhost/api/auth/logout', {
         method: 'POST',

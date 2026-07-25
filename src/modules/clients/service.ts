@@ -6,6 +6,11 @@ export type ClientRecord = {
   id: string;
   name: string;
   isActive: boolean;
+  hourBankEnabled: boolean;
+  hourBankStartDate: string | null;
+  hourBankInitialMinutes: number;
+  maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -63,6 +68,11 @@ export const listClients = async (userId: string): Promise<ClientRecord[]> =>
       id: clients.id,
       name: clients.name,
       isActive: clients.isActive,
+      hourBankEnabled: clients.hourBankEnabled,
+      hourBankStartDate: clients.hourBankStartDate,
+      hourBankInitialMinutes: clients.hourBankInitialMinutes,
+      maxDailyBillableMinutes: clients.maxDailyBillableMinutes,
+      maxWeeklyBillableMinutes: clients.maxWeeklyBillableMinutes,
       createdAt: clients.createdAt,
       updatedAt: clients.updatedAt,
     })
@@ -84,6 +94,11 @@ export const createClient = async (userId: string, rawName: string): Promise<Cli
       id: clients.id,
       name: clients.name,
       isActive: clients.isActive,
+      hourBankEnabled: clients.hourBankEnabled,
+      hourBankStartDate: clients.hourBankStartDate,
+      hourBankInitialMinutes: clients.hourBankInitialMinutes,
+      maxDailyBillableMinutes: clients.maxDailyBillableMinutes,
+      maxWeeklyBillableMinutes: clients.maxWeeklyBillableMinutes,
       createdAt: clients.createdAt,
       updatedAt: clients.updatedAt,
     });
@@ -97,12 +112,27 @@ export const createClient = async (userId: string, rawName: string): Promise<Cli
 export const updateClient = async (
   userId: string,
   clientId: string,
-  input: { name?: string; isActive?: boolean },
+  input: {
+    name?: string;
+    isActive?: boolean;
+    hourBankEnabled?: boolean;
+    hourBankStartDate?: string | null;
+    hourBankInitialMinutes?: number;
+    maxDailyBillableMinutes?: number;
+    maxWeeklyBillableMinutes?: number;
+  },
 ): Promise<ClientRecord> => {
   // Inclure userId dans la recherche empêche de modifier le client d'un autre
   // compte en devinant ou en récupérant son identifiant.
   const [existing] = await database
-    .select({ id: clients.id, name: clients.name })
+    .select({
+      id: clients.id,
+      name: clients.name,
+      hourBankEnabled: clients.hourBankEnabled,
+      hourBankStartDate: clients.hourBankStartDate,
+      maxDailyBillableMinutes: clients.maxDailyBillableMinutes,
+      maxWeeklyBillableMinutes: clients.maxWeeklyBillableMinutes,
+    })
     .from(clients)
     .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
     .limit(1);
@@ -118,12 +148,37 @@ export const updateClient = async (
   if (name.toLowerCase() !== existing.name.trim().toLowerCase()) {
     await assertUniqueName(userId, name, clientId);
   }
+  const hourBankEnabled = input.hourBankEnabled ?? existing.hourBankEnabled;
+  const hourBankStartDate = input.hourBankStartDate === undefined
+    ? existing.hourBankStartDate
+    : input.hourBankStartDate;
+  const maxDailyBillableMinutes = input.maxDailyBillableMinutes
+    ?? existing.maxDailyBillableMinutes;
+  const maxWeeklyBillableMinutes = input.maxWeeklyBillableMinutes
+    ?? existing.maxWeeklyBillableMinutes;
+  if (hourBankEnabled && !hourBankStartDate) {
+    throw new Error('Hour bank start date is required');
+  }
+  if (maxDailyBillableMinutes <= 0 || maxWeeklyBillableMinutes <= 0) {
+    throw new Error('Billable limits must be positive');
+  }
 
   const [client] = await database
     .update(clients)
     .set({
       name,
       ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
+      ...(input.hourBankEnabled === undefined ? {} : { hourBankEnabled }),
+      ...(input.hourBankStartDate === undefined ? {} : { hourBankStartDate }),
+      ...(input.hourBankInitialMinutes === undefined
+        ? {}
+        : { hourBankInitialMinutes: input.hourBankInitialMinutes }),
+      ...(input.maxDailyBillableMinutes === undefined
+        ? {}
+        : { maxDailyBillableMinutes }),
+      ...(input.maxWeeklyBillableMinutes === undefined
+        ? {}
+        : { maxWeeklyBillableMinutes }),
       updatedAt: new Date(),
     })
     .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
@@ -131,6 +186,11 @@ export const updateClient = async (
       id: clients.id,
       name: clients.name,
       isActive: clients.isActive,
+      hourBankEnabled: clients.hourBankEnabled,
+      hourBankStartDate: clients.hourBankStartDate,
+      hourBankInitialMinutes: clients.hourBankInitialMinutes,
+      maxDailyBillableMinutes: clients.maxDailyBillableMinutes,
+      maxWeeklyBillableMinutes: clients.maxWeeklyBillableMinutes,
       createdAt: clients.createdAt,
       updatedAt: clients.updatedAt,
     });

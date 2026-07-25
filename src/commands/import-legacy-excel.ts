@@ -298,6 +298,7 @@ const run = async () => {
         projectId: projectIdsByName.get(projectKey(entry.clientName, entry.projectName))!,
         workDate: entry.workDate,
         durationMinutes: entry.durationMinutes,
+        clientMinutes: entry.durationMinutes,
         description: entry.description,
         hourlyRate: entry.hourlyRate,
         amount: entry.amount,

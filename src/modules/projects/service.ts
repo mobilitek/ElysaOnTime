@@ -113,7 +113,7 @@ export const updateProject = async (
       // Les entrées facturées conservent toujours leur taux historique.
       await transaction.update(workEntries).set({
         hourlyRate,
-        amount: sql`round((${workEntries.durationMinutes}::numeric / 60) * ${hourlyRate}::numeric, 2)`,
+        amount: sql`round((${workEntries.clientMinutes}::numeric / 60) * ${hourlyRate}::numeric, 2)`,
         updatedAt: new Date(),
       }).where(and(eq(workEntries.projectId, projectId), eq(workEntries.isBilled, false)));
     }

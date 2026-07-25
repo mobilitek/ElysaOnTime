@@ -15,6 +15,14 @@ describe('application', () => {
     });
   });
 
+  test('protects database identity behind authentication', async () => {
+    const response = await createApp().handle(
+      new Request('http://localhost/api/system-info'),
+    );
+
+    expect(response.status).toBe(401);
+  });
+
   test('redirects proxied HTTP requests to the same HTTPS URL', () => {
     const response = redirectHttpToHttps(new Request(
       'http://mobilitek925.synology.me/health?check=1',

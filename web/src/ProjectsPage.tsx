@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string };
@@ -7,7 +8,7 @@ type Project = { id: string; clientId: string; name: string; hourlyRate: string;
 type RateMode = 'future_only' | 'update_unbilled';
 
 type Props = {
-  language: Language; user: User; onLanguageChange: (language: Language) => void;
+  language: Language; user: User; systemInfo: SystemInfo | null; systemInfoError: boolean; onLanguageChange: (language: Language) => void;
   onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void; onNavigateProfile: () => void;
 };
 
@@ -44,7 +45,7 @@ const copy = {
 
 const validRate = /^\d{1,10}(\.\d{1,2})?$/;
 
-export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile }: Props) {
+export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState('');
@@ -134,7 +135,7 @@ export function ProjectsPage({ language, user, onLanguageChange, onLogout, onNav
     <header className="app-header">
       <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
       <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button><button type="button" onClick={onNavigateProfile}>{text.profile}</button></nav>
-      <div className="header-actions"><label className="confidential-switch"><input type="checkbox" checked={confidential} onChange={(event) => { setConfidential(event.target.checked); document.cookie = `ontime_confidential=${event.target.checked}; Max-Age=31536000; Path=/; SameSite=Lax`; }} />{text.confidential}</label><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><div className="user-chip"><span>{user.firstName[0]}{user.lastName[0]}</span><div><strong>{user.firstName} {user.lastName}</strong><button type="button" onClick={() => void onLogout()}>{text.logout}</button></div></div></div>
+      <div className="header-actions"><label className="confidential-switch"><input type="checkbox" checked={confidential} onChange={(event) => { setConfidential(event.target.checked); document.cookie = `ontime_confidential=${event.target.checked}; Max-Age=31536000; Path=/; SameSite=Lax`; }} />{text.confidential}</label><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><UserEnvironmentChip user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} logoutLabel={text.logout} onLogout={onLogout} /></div>
     </header>
     <section className="content-shell">
       <div className="page-heading"><div><p className="eyebrow">ONTIME</p><h1>{text.title}</h1><p>{text.subtitle}</p></div>{clientId ? <button className="add-button" type="button" onClick={openCreate}><span>+</span>{text.add}</button> : null}</div>

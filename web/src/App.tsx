@@ -3,6 +3,7 @@ import { ClientsPage } from './ClientsPage';
 import { ProjectsPage } from './ProjectsPage';
 import { WorkLogPage } from './WorkLogPage';
 import { ProfilePage } from './ProfilePage';
+import type { SystemInfo } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
@@ -66,6 +67,8 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [systemInfoError, setSystemInfoError] = useState(false);
   const [page, setPage] = useState<Page>('worklog');
   const text = copy[language];
 
@@ -93,6 +96,46 @@ export function App() {
     };
     void loadSession();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setSystemInfo(null);
+      setSystemInfoError(false);
+      return;
+    }
+
+    // La route interroge PostgreSQL lui-même; le badge représente donc la base
+    // réellement utilisée par l'API pour cette session.
+    const loadSystemInfo = async (clearCurrent = false) => {
+      if (clearCurrent) setSystemInfo(null);
+      try {
+        const response = await fetch('/api/system-info', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Unable to load system information');
+        setSystemInfo(await response.json() as SystemInfo);
+        setSystemInfoError(false);
+      } catch {
+        setSystemInfo(null);
+        setSystemInfoError(true);
+      }
+    };
+
+    void loadSystemInfo(true);
+
+    // Une modification du .env redémarre l'API sans nécessairement recréer
+    // l'état React. Une vérification périodique et au retour dans l'onglet remet
+    // donc automatiquement le badge à jour après ce court intervalle.
+    const refresh = () => void loadSystemInfo();
+    const interval = window.setInterval(refresh, 10_000);
+    window.addEventListener('focus', refresh);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [user?.id]);
 
   const selectLanguage = (next: Language) => {
     // Le témoin est partagé avec toutes les pages sans stockage serveur.
@@ -189,10 +232,10 @@ export function App() {
   if (!isCheckingSession && user) {
     // La navigation de phase 1 demeure un état React simple; chaque page partage
     // l'utilisateur, la langue et les callbacks de la barre de navigation.
-    if (page === 'clients') return <ClientsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
-    if (page === 'projects') return <ProjectsPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} />;
-    if (page === 'profile') return <ProfilePage language={language} user={user} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
-    return <WorkLogPage language={language} user={user} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'clients') return <ClientsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'projects') return <ProjectsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'profile') return <ProfilePage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
+    return <WorkLogPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
   }
 
   return (
