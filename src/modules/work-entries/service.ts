@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
 import { database } from '../../database';
 import { clients, projects, workEntries } from '../../db/schema';
+import { synchronizeClosedHourBankWeek } from '../hour-bank/service';
 
 export class EntryNotFoundError extends Error {}
 export class ProjectUnavailableError extends Error {}
@@ -64,19 +65,19 @@ const clientTimeFor = async (
   input: Pick<EntryInput, 'workDate' | 'durationMinutes' | 'clientMinutes'>,
   excludedEntryId?: string,
 ) => {
-  const bankApplies = context.client.hourBankEnabled
-    && context.client.hourBankStartDate
-    && input.workDate >= context.client.hourBankStartDate;
+  const bankApplies = context.project.hourBankEnabled
+    && context.project.hourBankStartDate
+    && input.workDate >= context.project.hourBankStartDate;
   if (!bankApplies) return input.durationMinutes;
 
   const clientMinutes = input.clientMinutes ?? input.durationMinutes;
-  if (clientMinutes > context.client.maxDailyBillableMinutes) {
-    throw new ClientTimeLimitError('Daily client time exceeds the client limit');
+  if (clientMinutes > context.project.maxDailyBillableMinutes) {
+    throw new ClientTimeLimitError('Daily billable time exceeds the project limit');
   }
   const exclusion = excludedEntryId ? ne(workEntries.id, excludedEntryId) : undefined;
   const common = [
     eq(workEntries.userId, userId),
-    eq(clients.id, context.client.id),
+    eq(projects.id, context.project.id),
     eq(workEntries.isDeleted, false),
     ...(exclusion ? [exclusion] : []),
   ];
@@ -99,11 +100,11 @@ const clientTimeFor = async (
         lte(workEntries.workDate, week.to),
       )),
   ]);
-  if (Number(day?.minutes ?? 0) + clientMinutes > context.client.maxDailyBillableMinutes) {
-    throw new ClientTimeLimitError('Daily client time exceeds the client limit');
+  if (Number(day?.minutes ?? 0) + clientMinutes > context.project.maxDailyBillableMinutes) {
+    throw new ClientTimeLimitError('Daily billable time exceeds the project limit');
   }
-  if (Number(weekTotal?.minutes ?? 0) + clientMinutes > context.client.maxWeeklyBillableMinutes) {
-    throw new ClientTimeLimitError('Weekly client time exceeds the client limit');
+  if (Number(weekTotal?.minutes ?? 0) + clientMinutes > context.project.maxWeeklyBillableMinutes) {
+    throw new ClientTimeLimitError('Weekly billable time exceeds the project limit');
   }
   return clientMinutes;
 };
@@ -163,6 +164,7 @@ export const createEntry = async (userId: string, input: EntryInput) => {
     hourlyRate: context.project.hourlyRate,
     amount: amountFor(clientMinutes, context.project.hourlyRate),
   }).returning();
+  await synchronizeClosedHourBankWeek(userId, context.project.id, input.workDate);
   return entry;
 };
 
@@ -185,22 +187,41 @@ export const updateEntry = async (userId: string, id: string, input: Omit<EntryI
     amount: amountFor(clientMinutes, current.entry.hourlyRate),
     updatedAt: new Date(),
   }).where(eq(workEntries.id, id)).returning();
+  // Une modification de date peut toucher l'ancienne semaine et la nouvelle.
+  await synchronizeClosedHourBankWeek(userId, current.project.id, current.entry.workDate);
+  if (input.workDate !== current.entry.workDate) {
+    await synchronizeClosedHourBankWeek(userId, current.project.id, input.workDate);
+  }
   return entry;
 };
 
 const requireEntries = async (userId: string, ids: string[]) => {
   // Toutes les lignes demandées doivent être accessibles. Une sélection mixte
   // valide/invalide est entièrement refusée au lieu d'être partiellement modifiée.
-  const rows = await database.select({ id: workEntries.id }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
+  const rows = await database.select({
+    id: workEntries.id,
+    projectId: projects.id,
+    workDate: workEntries.workDate,
+  }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(inArray(workEntries.id, ids), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true)));
   if (rows.length !== new Set(ids).size) throw new EntryNotFoundError('One or more entries are unavailable');
+  return rows;
 };
 
 export const toggleEntries = async (userId: string, ids: string[], field: 'isBilled' | 'isDeleted') => {
-  await requireEntries(userId, ids);
+  const affected = await requireEntries(userId, ids);
   const column = field === 'isBilled' ? workEntries.isBilled : workEntries.isDeleted;
   // Chaque valeur est inversée individuellement en fonction de son état actuel.
-  return database.update(workEntries).set({ [field]: sql`not ${column}`, updatedAt: new Date() }).where(inArray(workEntries.id, ids)).returning({ id: workEntries.id, isBilled: workEntries.isBilled, isDeleted: workEntries.isDeleted });
+  const updated = await database.update(workEntries).set({ [field]: sql`not ${column}`, updatedAt: new Date() }).where(inArray(workEntries.id, ids)).returning({ id: workEntries.id, isBilled: workEntries.isBilled, isDeleted: workEntries.isDeleted });
+  if (field === 'isDeleted') {
+    const weeks = new Map(affected.map((entry) => [
+      `${entry.projectId}:${weekBounds(entry.workDate).from}`,
+      entry,
+    ]));
+    await Promise.all([...weeks.values()].map((entry) =>
+      synchronizeClosedHourBankWeek(userId, entry.projectId, entry.workDate)));
+  }
+  return updated;
 };
 
 /**
@@ -239,5 +260,6 @@ export const duplicateEntry = async (userId: string, id: string, nextWorkday: bo
     isBilled: false,
     isDeleted: false,
   }).returning();
+  await synchronizeClosedHourBankWeek(userId, context.project.id, workDate);
   return copy;
 };

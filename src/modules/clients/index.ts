@@ -71,14 +71,6 @@ export const clientRoutes = new Elysia({ prefix: '/api/clients' })
       body: t.Object({
         name: t.Optional(clientNameSchema),
         isActive: t.Optional(t.Boolean()),
-        hourBankEnabled: t.Optional(t.Boolean()),
-        hourBankStartDate: t.Optional(t.Union([
-          t.String({ format: 'date' }),
-          t.Null(),
-        ])),
-        hourBankInitialMinutes: t.Optional(t.Integer()),
-        maxDailyBillableMinutes: t.Optional(t.Integer({ minimum: 1 })),
-        maxWeeklyBillableMinutes: t.Optional(t.Integer({ minimum: 1 })),
       }),
     },
   );

@@ -1,15 +1,16 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { ClientsPage } from './ClientsPage';
 import { ProjectsPage } from './ProjectsPage';
 import { WorkLogPage } from './WorkLogPage';
 import { ProfilePage } from './ProfilePage';
 import { AdminUsersPage } from './AdminUsersPage';
 import { SubscriptionExpiredPage } from './SubscriptionExpiredPage';
+import { HelpCenterPage, type HelpContext } from './HelpCenterPage';
 import type { SystemInfo } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean; accountStatus: 'active' | 'suspended' | 'disabled'; subscriptionStartedOn: string; subscriptionEndsOn: string | null; accessLevel: 'full' | 'subscription_expired' };
-type Page = 'worklog' | 'clients' | 'projects' | 'profile' | 'admin';
+type Page = 'worklog' | 'clients' | 'projects' | 'profile' | 'admin' | 'help';
 
 const copy = {
   fr: {
@@ -72,14 +73,16 @@ export function App() {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [systemInfoError, setSystemInfoError] = useState(false);
   const [page, setPage] = useState<Page>('worklog');
+  const [helpContext, setHelpContext] = useState<HelpContext>('worklog');
+  const [helpReturnPage, setHelpReturnPage] = useState<Exclude<Page, 'help'>>('worklog');
   const text = copy[language];
 
   useEffect(() => {
     // Synchroniser le titre et l'attribut lang améliore l'accessibilité et rend
     // chaque état d'authentification identifiable dans l'onglet du navigateur.
     const titles = language === 'fr'
-      ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil', admin: 'Administration' }
-      : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile', admin: 'Administration' };
+      ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil', admin: 'Administration', help: 'Aide' }
+      : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile', admin: 'Administration', help: 'Help' };
     const section = user ? titles[page] : resetToken ? titles.reset : isForgotPassword ? titles.forgot : isRegistering ? titles.register : titles.login;
     document.title = `OnTime — ${section}`;
     document.documentElement.lang = language;
@@ -232,16 +235,28 @@ export function App() {
   };
 
   if (!isCheckingSession && user) {
+    const openHelp = (context: HelpContext, returnPage: Exclude<Page, 'help'>) => {
+      setHelpContext(context);
+      setHelpReturnPage(returnPage);
+      setPage('help');
+    };
+    const withHelp = (content: ReactNode, context: HelpContext, returnPage: Exclude<Page, 'help'>) => <>
+      {content}
+      <button className="floating-help-button" title={language === 'fr' ? 'Aide pour cette page' : 'Help for this page'} aria-label={language === 'fr' ? 'Aide pour cette page' : 'Help for this page'} onClick={() => openHelp(context, returnPage)}>?</button>
+    </>;
+    if (page === 'help') {
+      return <HelpCenterPage language={language} user={user} context={helpContext} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onBack={() => setPage(helpReturnPage)} />;
+    }
     // La navigation de phase 1 demeure un état React simple; chaque page partage
     // l'utilisateur, la langue et les callbacks de la barre de navigation.
     if (user.accessLevel === 'subscription_expired' && page !== 'profile') {
-      return <SubscriptionExpiredPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateProfile={() => setPage('profile')} />;
+      return withHelp(<SubscriptionExpiredPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateProfile={() => setPage('profile')} />, 'subscription', 'worklog');
     }
-    if (page === 'admin' && user.isAdmin) return <AdminUsersPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
-    if (page === 'clients') return <ClientsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
-    if (page === 'projects') return <ProjectsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
-    if (page === 'profile') return <ProfilePage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
-    return <WorkLogPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
+    if (page === 'admin' && user.isAdmin) return withHelp(<AdminUsersPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />, 'admin', 'admin');
+    if (page === 'clients') return withHelp(<ClientsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />, 'clients', 'clients');
+    if (page === 'projects') return withHelp(<ProjectsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />, 'projects', 'projects');
+    if (page === 'profile') return withHelp(<ProfilePage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />, 'profile', 'profile');
+    return withHelp(<WorkLogPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />, 'worklog', 'worklog');
   }
 
   return (

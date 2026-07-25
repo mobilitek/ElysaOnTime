@@ -17,7 +17,7 @@ export const hourBankRoutes = new Elysia({ prefix: '/api/hour-bank' })
     const user = await authenticatedUser(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
     try {
-      return await getHourBankWeek(user.id, query.clientId, query.weekStart);
+      return await getHourBankWeek(user.id, query.projectId, query.weekStart);
     } catch (error) {
       if (error instanceof HourBankUnavailableError) {
         return status(404, { error: 'HOUR_BANK_UNAVAILABLE', message: error.message });
@@ -29,7 +29,7 @@ export const hourBankRoutes = new Elysia({ prefix: '/api/hour-bank' })
     }
   }, {
     query: t.Object({
-      clientId: t.String({ format: 'uuid' }),
+      projectId: t.String({ format: 'uuid' }),
       weekStart: t.String({ format: 'date' }),
     }),
   })
@@ -38,7 +38,7 @@ export const hourBankRoutes = new Elysia({ prefix: '/api/hour-bank' })
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
     if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
     try {
-      return await closeHourBankWeek(user.id, body.clientId, body.weekStart, body);
+      return await closeHourBankWeek(user.id, body.projectId, body.weekStart, body);
     } catch (error) {
       if (error instanceof HourBankUnavailableError) {
         return status(404, { error: 'HOUR_BANK_UNAVAILABLE', message: error.message });
@@ -50,7 +50,7 @@ export const hourBankRoutes = new Elysia({ prefix: '/api/hour-bank' })
     }
   }, {
     body: t.Object({
-      clientId: t.String({ format: 'uuid' }),
+      projectId: t.String({ format: 'uuid' }),
       weekStart: t.String({ format: 'date' }),
       note: t.String({ maxLength: 500 }),
     }),

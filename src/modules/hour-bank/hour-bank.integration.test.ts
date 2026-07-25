@@ -7,6 +7,7 @@ const email = `hour-bank-${crypto.randomUUID()}@example.com`;
 let userId = '';
 let clientId = '';
 let projectId = '';
+let entryId = '';
 let cookie = '';
 
 const { createApp } = await import('../../app');
@@ -19,9 +20,9 @@ const {
   workEntries,
 } = await import('../../db/schema');
 const { authenticate, createUser } = await import('../auth/service');
-const { createClient, updateClient } = await import('../clients/service');
+const { createClient } = await import('../clients/service');
 const { createProject } = await import('../projects/service');
-const { createEntry } = await import('../work-entries/service');
+const { createEntry, updateEntry } = await import('../work-entries/service');
 
 const request = (path: string, method = 'GET', body?: unknown) =>
   createApp().handle(new Request(`http://localhost${path}`, {
@@ -43,25 +44,23 @@ describe.skipIf(!run)('hour bank integration', () => {
     });
     userId = user.id;
     clientId = (await createClient(userId, 'Hour bank client')).id;
-    await updateClient(userId, clientId, {
+    projectId = (await createProject(userId, {
+      clientId,
+      name: 'Hour bank project',
+      hourlyRate: '100.00',
       hourBankEnabled: true,
       hourBankStartDate: '2026-07-18',
       hourBankInitialMinutes: 60,
       maxDailyBillableMinutes: 480,
       maxWeeklyBillableMinutes: 2400,
-    });
-    projectId = (await createProject(userId, {
-      clientId,
-      name: 'Hour bank project',
-      hourlyRate: '100.00',
     })).id;
-    await createEntry(userId, {
+    entryId = (await createEntry(userId, {
       projectId,
       workDate: '2026-07-20',
       durationMinutes: 540,
       clientMinutes: 480,
       description: 'Nine actual hours',
-    });
+    })).id;
     const session = await authenticate(email, 'integration-password', false);
     if (!session) throw new Error('Expected session');
     cookie = `ontime_session=${session.token}`;
@@ -78,7 +77,7 @@ describe.skipIf(!run)('hour bank integration', () => {
 
   test('proposes, closes and revises a week with a negative balance allowed', async () => {
     const proposalResponse = await request(
-      `/api/hour-bank/week?clientId=${clientId}&weekStart=2026-07-18`,
+      `/api/hour-bank/week?projectId=${projectId}&weekStart=2026-07-18`,
     );
     expect(proposalResponse.status).toBe(200);
     const proposal = await proposalResponse.json() as {
@@ -94,7 +93,7 @@ describe.skipIf(!run)('hour bank integration', () => {
     });
 
     const closeResponse = await request('/api/hour-bank/week', 'PUT', {
-      clientId,
+      projectId,
       weekStart: '2026-07-18',
       note: 'Vacation buffer',
     });
@@ -122,7 +121,37 @@ describe.skipIf(!run)('hour bank integration', () => {
     expect((hours as Date).getUTCHours()).toBe(8);
   });
 
-  test('rejects client time over the configured eight-hour daily maximum', async () => {
+  test('resynchronizes a closed week when one of its entries changes', async () => {
+    await updateEntry(userId, entryId, {
+      workDate: '2026-07-20',
+      durationMinutes: 480,
+      clientMinutes: 480,
+      description: 'Eight actual hours after correction',
+    });
+
+    const [closure] = await database
+      .select()
+      .from(hourBankClosures)
+      .where(eq(hourBankClosures.projectId, projectId));
+    expect(closure).toMatchObject({
+      actualMinutes: 480,
+      billedMinutes: 480,
+      movementMinutes: 0,
+    });
+
+    const followingResponse = await request(
+      `/api/hour-bank/week?projectId=${projectId}&weekStart=2026-07-25`,
+    );
+    expect(followingResponse.status).toBe(200);
+    const following = await followingResponse.json() as {
+      openingBalanceMinutes: number;
+      closingBalanceMinutes: number;
+    };
+    expect(following.openingBalanceMinutes).toBe(60);
+    expect(following.closingBalanceMinutes).toBe(60);
+  });
+
+  test('rejects billable time over the project eight-hour daily maximum', async () => {
     const response = await request('/api/work-entries', 'POST', {
       projectId,
       workDate: '2026-07-21',

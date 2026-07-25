@@ -74,4 +74,60 @@ describe.skipIf(!runIntegrationTests)('projects integration', () => {
     expect(entries.find((entry) => entry.description === 'Unbilled')).toMatchObject({ rate: '90.00', amount: '135.00' });
     expect(entries.find((entry) => entry.description === 'Billed')).toMatchObject({ rate: '85.00', amount: '85.00' });
   });
+
+  test('keeps independent hour-bank settings for each project of one client', async () => {
+    const [firstProject] = await database.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.clientId, clientId), eq(projects.name, 'Mandat 1'))).limit(1);
+    if (!firstProject) throw new Error('Expected first project');
+
+    const update = await createApp().handle(new Request(`http://localhost/api/projects/${firstProject.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        hourBankEnabled: true,
+        hourBankStartDate: '2026-07-25',
+        hourBankInitialMinutes: 120,
+        maxDailyBillableMinutes: 480,
+        maxWeeklyBillableMinutes: 2400,
+      }),
+    }));
+    expect(update.status).toBe(200);
+
+    const create = await createApp().handle(new Request('http://localhost/api/projects', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        clientId,
+        name: 'Mandat 2',
+        hourlyRate: '110.00',
+        hourBankEnabled: true,
+        hourBankStartDate: '2026-08-01',
+        hourBankInitialMinutes: -60,
+        maxDailyBillableMinutes: 360,
+        maxWeeklyBillableMinutes: 1800,
+      }),
+    }));
+    expect(create.status).toBe(201);
+
+    const settings = await database
+      .select({
+        name: projects.name,
+        initial: projects.hourBankInitialMinutes,
+        daily: projects.maxDailyBillableMinutes,
+        weekly: projects.maxWeeklyBillableMinutes,
+      })
+      .from(projects)
+      .where(eq(projects.clientId, clientId));
+
+    expect(settings.find((project) => project.name === 'Mandat 1')).toMatchObject({
+      initial: 120,
+      daily: 480,
+      weekly: 2400,
+    });
+    expect(settings.find((project) => project.name === 'Mandat 2')).toMatchObject({
+      initial: -60,
+      daily: 360,
+      weekly: 1800,
+    });
+  });
 });

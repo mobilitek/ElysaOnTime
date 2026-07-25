@@ -10,6 +10,13 @@ import {
 const getUser = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
 const nameSchema = t.String({ minLength: 1, maxLength: 200 });
 const rateSchema = t.String({ pattern: '^\\d{1,10}(\\.\\d{1,2})?$' });
+const bankFields = {
+  hourBankEnabled: t.Optional(t.Boolean()),
+  hourBankStartDate: t.Optional(t.Union([t.String({ format: 'date' }), t.Null()])),
+  hourBankInitialMinutes: t.Optional(t.Integer()),
+  maxDailyBillableMinutes: t.Optional(t.Integer({ minimum: 1 })),
+  maxWeeklyBillableMinutes: t.Optional(t.Integer({ minimum: 1 })),
+};
 
 const handleKnownError = (error: unknown, status: (code: number, body: unknown) => unknown) => {
   if (error instanceof DuplicateProjectNameError) return status(409, { error: 'PROJECT_NAME_EXISTS', message: error.message });
@@ -33,7 +40,7 @@ export const projectRoutes = new Elysia({ prefix: '/api/projects' })
     if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
     try { return status(201, { project: await createProject(user.id, body) }); }
     catch (error) { return handleKnownError(error, status); }
-  }, { body: t.Object({ clientId: t.String({ format: 'uuid' }), name: nameSchema, hourlyRate: rateSchema }) })
+  }, { body: t.Object({ clientId: t.String({ format: 'uuid' }), name: nameSchema, hourlyRate: rateSchema, ...bankFields }) })
   .patch('/:id', async ({ body, cookie, params, status }) => {
     const user = await getUser(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED', message: 'Authentication required' });
@@ -45,5 +52,6 @@ export const projectRoutes = new Elysia({ prefix: '/api/projects' })
     body: t.Object({
       name: t.Optional(nameSchema), hourlyRate: t.Optional(rateSchema), isActive: t.Optional(t.Boolean()),
       rateUpdateMode: t.Optional(t.Union([t.Literal('future_only'), t.Literal('update_unbilled')])),
+      ...bankFields,
     }),
   });

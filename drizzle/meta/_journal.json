@@ -71,6 +71,13 @@
       "when": 1784995006133,
       "tag": "0009_shocking_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784999420216,
+      "tag": "0010_steady_blackheart",
+      "breakpoints": true
     }
   ]
 }

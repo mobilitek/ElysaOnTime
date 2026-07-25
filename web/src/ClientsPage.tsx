@@ -1,15 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
-import { completeWholeHours } from './durationInput';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
-type Client = {
-  id: string; name: string; isActive: boolean;
-  hourBankEnabled: boolean; hourBankStartDate: string | null;
-  hourBankInitialMinutes: number; maxDailyBillableMinutes: number;
-  maxWeeklyBillableMinutes: number; createdAt: string; updatedAt: string;
-};
+type Client = { id: string; name: string; isActive: boolean; createdAt: string; updatedAt: string };
 
 type Props = {
   language: Language;
@@ -56,16 +50,6 @@ const copy = {
   },
 } as const;
 
-const time = (minutes: number) => {
-  const sign = minutes < 0 ? '-' : '';
-  const absolute = Math.abs(minutes);
-  return `${sign}${String(Math.floor(absolute / 60)).padStart(2, '0')}:${String(absolute % 60).padStart(2, '0')}`;
-};
-const minutes = (value: string) => {
-  const match = /^(-)?(\d+):([0-5]\d)$/.exec(value.trim());
-  return match ? (match[1] ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : null;
-};
-
 export function ClientsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile, onNavigateAdmin }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
@@ -74,11 +58,6 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [name, setName] = useState('');
-  const [hourBankEnabled, setHourBankEnabled] = useState(false);
-  const [hourBankStartDate, setHourBankStartDate] = useState('');
-  const [hourBankInitial, setHourBankInitial] = useState('00:00');
-  const [maxDaily, setMaxDaily] = useState('08:00');
-  const [maxWeekly, setMaxWeekly] = useState('40:00');
   const [error, setError] = useState<string | null>(null);
 
   const loadClients = async () => {
@@ -98,15 +77,10 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
   useEffect(() => { void loadClients(); }, []);
 
   const openCreate = () => {
-    setEditingClient(null); setName(''); setHourBankEnabled(false); setError(null); setIsFormOpen(true);
+    setEditingClient(null); setName(''); setError(null); setIsFormOpen(true);
   };
   const openEdit = (client: Client) => {
     setEditingClient(client); setName(client.name);
-    setHourBankEnabled(client.hourBankEnabled);
-    setHourBankStartDate(client.hourBankStartDate ?? new Date().toISOString().slice(0, 10));
-    setHourBankInitial(time(client.hourBankInitialMinutes));
-    setMaxDaily(time(client.maxDailyBillableMinutes));
-    setMaxWeekly(time(client.maxWeeklyBillableMinutes));
     setError(null); setIsFormOpen(true);
   };
   const closeForm = () => { setIsFormOpen(false); setEditingClient(null); setError(null); };
@@ -116,47 +90,12 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
     event.preventDefault();
     const normalizedName = name.trim();
     if (!normalizedName) { setError(text.required); return; }
-    const completedInitial = completeWholeHours(hourBankInitial, true);
-    const completedDaily = completeWholeHours(maxDaily);
-    const completedWeekly = completeWholeHours(maxWeekly);
-    const suggestions = [
-      completedInitial ? `${hourBankInitial.trim()} → ${completedInitial}` : null,
-      completedDaily ? `${maxDaily.trim()} → ${completedDaily}` : null,
-      completedWeekly ? `${maxWeekly.trim()} → ${completedWeekly}` : null,
-    ].filter(Boolean);
-    if (editingClient && suggestions.length && !confirm(`${text.completeHours}\n\n${suggestions.join('\n')}`)) return;
-    if (completedInitial) setHourBankInitial(completedInitial);
-    if (completedDaily) setMaxDaily(completedDaily);
-    if (completedWeekly) setMaxWeekly(completedWeekly);
-    const initialMinutes = minutes(completedInitial ?? hourBankInitial);
-    const dailyMinutes = minutes(completedDaily ?? maxDaily);
-    const weeklyMinutes = minutes(completedWeekly ?? maxWeekly);
-    if (editingClient && (
-      (hourBankEnabled && !hourBankStartDate)
-      || initialMinutes === null
-      || dailyMinutes === null
-      || weeklyMinutes === null
-      || dailyMinutes <= 0
-      || weeklyMinutes <= 0
-    )) {
-      setError(text.invalidBank);
-      return;
-    }
     setIsSaving(true); setError(null);
     try {
       const response = await fetch(editingClient ? `/api/clients/${editingClient.id}` : '/api/clients', {
         method: editingClient ? 'PATCH' : 'POST', credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name: normalizedName,
-          ...(editingClient ? {
-            hourBankEnabled,
-            hourBankStartDate: hourBankEnabled ? hourBankStartDate : null,
-            hourBankInitialMinutes: initialMinutes,
-            maxDailyBillableMinutes: dailyMinutes,
-            maxWeeklyBillableMinutes: weeklyMinutes,
-          } : {}),
-        }),
+        body: JSON.stringify({ name: normalizedName }),
       });
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
@@ -217,7 +156,7 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
               : <div className="client-table" role="table" aria-label={text.title}>
                   <div className="client-row client-table-head" role="row"><span role="columnheader">{text.name}</span><span role="columnheader">{text.status}</span><span role="columnheader" className="action-column">{text.actions}</span></div>
                   {clients.map((client) => <div className={`client-row ${client.isActive ? '' : 'inactive'}`} role="row" key={client.id}>
-                    <div className="client-name" role="cell"><span className="client-avatar">{client.name.slice(0, 2).toUpperCase()}</span><span><strong>{client.name}</strong>{client.hourBankEnabled ? <small className="bank-enabled-label">{text.bank}</small> : null}</span></div>
+                    <div className="client-name" role="cell"><span className="client-avatar">{client.name.slice(0, 2).toUpperCase()}</span><span><strong>{client.name}</strong></span></div>
                     <div role="cell"><button className={`status-toggle ${client.isActive ? 'active' : ''}`} type="button" onClick={() => void toggleClient(client)} aria-label={`${text.toggle} ${client.name}`}><span className="toggle-track"><span /></span>{client.isActive ? text.active : text.inactive}</button></div>
                     <div className="action-column" role="cell"><button className="edit-button" type="button" onClick={() => openEdit(client)}>{text.edit}</button></div>
                   </div>)}
@@ -229,7 +168,6 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
         <section className="client-modal" role="dialog" aria-modal="true" aria-labelledby="client-form-title">
           <div className="modal-heading"><div><p className="eyebrow">CLIENT</p><h2 id="client-form-title">{editingClient ? text.editTitle : text.createTitle}</h2></div><button type="button" className="close-button" onClick={closeForm} aria-label={text.cancel}>×</button></div>
           <form onSubmit={saveClient}><label htmlFor="client-name">{text.name}</label><input id="client-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoFocus disabled={isSaving} />
-            {editingClient ? <fieldset className="hour-bank-settings"><legend>{text.bank}</legend><label className="bank-enable"><input type="checkbox" checked={hourBankEnabled} onChange={(event) => setHourBankEnabled(event.target.checked)} />{text.bankEnabled}</label>{hourBankEnabled ? <div className="bank-setting-grid"><label>{text.bankStart}<input type="date" value={hourBankStartDate} onChange={(event) => setHourBankStartDate(event.target.value)} /></label><label>{text.initialBalance}<input value={hourBankInitial} onChange={(event) => setHourBankInitial(event.target.value)} placeholder="00:00" /></label><label>{text.dailyMaximum}<input value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} placeholder="08:00" /></label><label>{text.weeklyMaximum}<input value={maxWeekly} onChange={(event) => setMaxWeekly(event.target.value)} placeholder="40:00" /></label></div> : null}</fieldset> : null}
             {error ? <p className="error-message" role="alert">{error}</p> : null}
             <div className="modal-actions"><button type="button" className="secondary-button" onClick={closeForm} disabled={isSaving}>{text.cancel}</button><button type="submit" className="primary-button" disabled={isSaving || !name.trim()}>{editingClient ? text.save : text.create}</button></div>
           </form>

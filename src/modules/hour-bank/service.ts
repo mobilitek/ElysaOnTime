@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lt, lte, sql } from 'drizzle-orm';
 import { database } from '../../database';
 import {
   clients,
@@ -19,26 +19,27 @@ const addDays = (value: string, days: number) => {
   return iso(date);
 };
 
-const bankClient = async (userId: string, clientId: string) => {
-  const [client] = await database
-    .select()
-    .from(clients)
+const bankProject = async (userId: string, projectId: string) => {
+  const [row] = await database
+    .select({ project: projects, clientName: clients.name })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(
-      eq(clients.id, clientId),
+      eq(projects.id, projectId),
       eq(clients.userId, userId),
-      eq(clients.hourBankEnabled, true),
+      eq(projects.hourBankEnabled, true),
     ))
     .limit(1);
 
-  if (!client?.hourBankStartDate) {
-    throw new HourBankUnavailableError('Hour bank is not enabled for this client');
+  if (!row?.project.hourBankStartDate) {
+    throw new HourBankUnavailableError('Hour bank is not enabled for this project');
   }
-  return client;
+  return row;
 };
 
 const actualByDay = async (
   userId: string,
-  clientId: string,
+  projectId: string,
   from: string,
   to: string,
 ) => {
@@ -53,7 +54,7 @@ const actualByDay = async (
     .innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(
       eq(workEntries.userId, userId),
-      eq(clients.id, clientId),
+      eq(projects.id, projectId),
       eq(workEntries.isDeleted, false),
       gte(workEntries.workDate, from),
       lte(workEntries.workDate, to),
@@ -68,24 +69,33 @@ const actualByDay = async (
 
 const balanceBefore = async (
   userId: string,
-  clientId: string,
+  projectId: string,
   before: string,
   initialMinutes: number,
-  excludedClosureId?: string,
 ) => {
-  const conditions = [
-    eq(hourBankClosures.userId, userId),
-    eq(hourBankClosures.clientId, clientId),
-    lt(hourBankClosures.weekStart, before),
-  ];
-  if (excludedClosureId) conditions.push(ne(hourBankClosures.id, excludedClosureId));
-  const [row] = await database
+  const closures = await database
     .select({
-      movements: sql<number>`coalesce(sum(${hourBankClosures.movementMinutes}), 0)::int`,
+      weekStart: hourBankClosures.weekStart,
+      weekEnd: hourBankClosures.weekEnd,
     })
     .from(hourBankClosures)
-    .where(and(...conditions));
-  return initialMinutes + Number(row?.movements ?? 0);
+    .where(and(
+      eq(hourBankClosures.userId, userId),
+      eq(hourBankClosures.projectId, projectId),
+      lt(hourBankClosures.weekStart, before),
+    ));
+
+  // Une fermeture confirme qu'une semaine doit contribuer au solde. Ses heures
+  // demeurent toutefois calculées depuis les entrées courantes afin qu'une
+  // modification ultérieure ne propage jamais un ancien mouvement.
+  const movements = await Promise.all(closures.map(async (closure) => {
+    const actual = await actualByDay(userId, projectId, closure.weekStart, closure.weekEnd);
+    return [...actual.values()].reduce(
+      (sum, day) => sum + day.actualMinutes - day.clientMinutes,
+      0,
+    );
+  }));
+  return initialMinutes + movements.reduce((sum, movement) => sum + movement, 0);
 };
 
 const validateWeek = (weekStart: string) => {
@@ -98,25 +108,26 @@ const validateWeek = (weekStart: string) => {
 
 export const getHourBankWeek = async (
   userId: string,
-  clientId: string,
+  projectId: string,
   weekStart: string,
   useStoredValues = true,
 ) => {
-  const client = await bankClient(userId, clientId);
-  const startDate = client.hourBankStartDate;
+  const bank = await bankProject(userId, projectId);
+  const project = bank.project;
+  const startDate = project.hourBankStartDate;
   if (!startDate) throw new HourBankUnavailableError('Hour bank start date is required');
   const weekEnd = validateWeek(weekStart);
   if (weekEnd < startDate) {
     throw new HourBankUnavailableError('Week predates hour bank activation');
   }
 
-  const actual = await actualByDay(userId, clientId, weekStart, weekEnd);
+  const actual = await actualByDay(userId, projectId, weekStart, weekEnd);
   const [existing] = await database
     .select()
     .from(hourBankClosures)
     .where(and(
       eq(hourBankClosures.userId, userId),
-      eq(hourBankClosures.clientId, clientId),
+      eq(hourBankClosures.projectId, projectId),
       eq(hourBankClosures.weekStart, weekStart),
     ))
     .limit(1);
@@ -148,25 +159,33 @@ export const getHourBankWeek = async (
   });
   const openingBalanceMinutes = await balanceBefore(
     userId,
-    clientId,
+    projectId,
     weekStart,
-    client.hourBankInitialMinutes,
-    existing?.id,
+    project.hourBankInitialMinutes,
   );
   const movementMinutes = days.reduce((sum, day) => sum + day.movementMinutes, 0);
+  const actualMinutes = days.reduce((sum, day) => sum + day.actualMinutes, 0);
+  const billedMinutes = days.reduce((sum, day) => sum + day.billedMinutes, 0);
+  const isConsistent = !existing || (
+    existing.actualMinutes === actualMinutes
+    && existing.billedMinutes === billedMinutes
+    && existing.movementMinutes === movementMinutes
+  );
 
   return {
-    client: {
-      id: client.id,
-      name: client.name,
+    project: {
+      id: project.id,
+      name: project.name,
+      clientName: bank.clientName,
       startDate,
-      initialMinutes: client.hourBankInitialMinutes,
-      maxDailyBillableMinutes: client.maxDailyBillableMinutes,
-      maxWeeklyBillableMinutes: client.maxWeeklyBillableMinutes,
+      initialMinutes: project.hourBankInitialMinutes,
+      maxDailyBillableMinutes: project.maxDailyBillableMinutes,
+      maxWeeklyBillableMinutes: project.maxWeeklyBillableMinutes,
     },
     weekStart,
     weekEnd,
     isClosed: Boolean(existing),
+    isConsistent,
     closureId: existing?.id ?? null,
     note: existing?.note ?? '',
     openingBalanceMinutes,
@@ -175,16 +194,72 @@ export const getHourBankWeek = async (
   };
 };
 
+/**
+ * Resynchronise une semaine déjà fermée après une mutation d'entrée.
+ * Une semaine encore ouverte ne nécessite aucune écriture supplémentaire.
+ */
+export const synchronizeClosedHourBankWeek = async (
+  userId: string,
+  projectId: string,
+  workDate: string,
+) => {
+  const date = dateAtNoon(workDate);
+  const offset = (date.getUTCDay() + 1) % 7;
+  date.setUTCDate(date.getUTCDate() - offset);
+  const weekStart = iso(date);
+  const weekEnd = addDays(weekStart, 6);
+  const [closure] = await database
+    .select()
+    .from(hourBankClosures)
+    .where(and(
+      eq(hourBankClosures.userId, userId),
+      eq(hourBankClosures.projectId, projectId),
+      eq(hourBankClosures.weekStart, weekStart),
+    ))
+    .limit(1);
+  if (!closure) return false;
+
+  const actual = await actualByDay(userId, projectId, weekStart, weekEnd);
+  const values = Array.from({ length: 7 }, (_, offset) => {
+    const day = addDays(weekStart, offset);
+    const totals = actual.get(day);
+    const actualMinutes = totals?.actualMinutes ?? 0;
+    const billedMinutes = totals?.clientMinutes ?? 0;
+    return {
+      workDate: day,
+      actualMinutes,
+      billedMinutes,
+      movementMinutes: actualMinutes - billedMinutes,
+    };
+  });
+  const actualMinutes = values.reduce((sum, day) => sum + day.actualMinutes, 0);
+  const billedMinutes = values.reduce((sum, day) => sum + day.billedMinutes, 0);
+
+  await database.transaction(async (tx) => {
+    await tx.update(hourBankClosures).set({
+      actualMinutes,
+      billedMinutes,
+      movementMinutes: actualMinutes - billedMinutes,
+      updatedAt: new Date(),
+    }).where(eq(hourBankClosures.id, closure.id));
+    await tx.delete(hourBankDays).where(eq(hourBankDays.closureId, closure.id));
+    await tx.insert(hourBankDays).values(
+      values.map((day) => ({ closureId: closure.id, ...day })),
+    );
+  });
+  return true;
+};
+
 export const closeHourBankWeek = async (
   userId: string,
-  clientId: string,
+  projectId: string,
   weekStart: string,
   input: { note: string },
 ) => {
-  const proposal = await getHourBankWeek(userId, clientId, weekStart, false);
+  const proposal = await getHourBankWeek(userId, projectId, weekStart, false);
   const billedMinutes = proposal.days.reduce((sum, day) => sum + day.billedMinutes, 0);
-  if (billedMinutes > proposal.client.maxWeeklyBillableMinutes) {
-    throw new InvalidHourBankWeekError('Weekly billed time exceeds the client limit');
+  if (billedMinutes > proposal.project.maxWeeklyBillableMinutes) {
+    throw new InvalidHourBankWeekError('Weekly billable time exceeds the project limit');
   }
   const values = proposal.days.map((day) => ({
     workDate: day.workDate,
@@ -212,7 +287,7 @@ export const closeHourBankWeek = async (
         .insert(hourBankClosures)
         .values({
           userId,
-          clientId,
+          projectId,
           weekStart,
           weekEnd: proposal.weekEnd,
           actualMinutes,
@@ -228,5 +303,5 @@ export const closeHourBankWeek = async (
     );
   });
 
-  return getHourBankWeek(userId, clientId, weekStart);
+  return getHourBankWeek(userId, projectId, weekStart);
 };

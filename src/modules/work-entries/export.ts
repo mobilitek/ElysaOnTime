@@ -65,28 +65,29 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (options.clientId) conditions.push(eq(clients.id, options.clientId));
   if (options.projectId) conditions.push(eq(projects.id, options.projectId));
   if (!options.includeDeleted) conditions.push(eq(workEntries.isDeleted, false));
-  const rows = await database.select({ id: workEntries.id, clientId: clients.id, clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes, description: workEntries.description, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount, createdAt: workEntries.createdAt })
+  const rows = await database.select({ id: workEntries.id, clientId: clients.id, projectId: projects.id, clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes, description: workEntries.description, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount, createdAt: workEntries.createdAt })
     .from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id)).where(and(...conditions)).orderBy(desc(workEntries.workDate), desc(workEntries.createdAt));
 
-  const clientIds = [...new Set(rows.map((row) => row.clientId))];
-  const bankConfigurations = clientIds.length
+  const projectIds = [...new Set(rows.map((row) => row.projectId))];
+  const bankConfigurations = projectIds.length
     ? await database
       .select({
-        id: clients.id,
-        startDate: clients.hourBankStartDate,
-        initialMinutes: clients.hourBankInitialMinutes,
+        id: projects.id,
+        startDate: projects.hourBankStartDate,
+        initialMinutes: projects.hourBankInitialMinutes,
       })
-      .from(clients)
+      .from(projects)
+      .innerJoin(clients, eq(projects.clientId, clients.id))
       .where(and(
-        inArray(clients.id, clientIds),
+        inArray(projects.id, projectIds),
         eq(clients.userId, user.id),
-        eq(clients.hourBankEnabled, true),
+        eq(projects.hourBankEnabled, true),
       ))
     : [];
   const bankDays = bankConfigurations.length
     ? await database
       .select({
-        clientId: hourBankClosures.clientId,
+        projectId: hourBankClosures.projectId,
         workDate: hourBankDays.workDate,
         billedMinutes: hourBankDays.billedMinutes,
         movementMinutes: hourBankDays.movementMinutes,
@@ -95,7 +96,7 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
       .innerJoin(hourBankClosures, eq(hourBankDays.closureId, hourBankClosures.id))
       .where(and(
         eq(hourBankClosures.userId, user.id),
-        inArray(hourBankClosures.clientId, bankConfigurations.map((client) => client.id)),
+        inArray(hourBankClosures.projectId, bankConfigurations.map((project) => project.id)),
         lte(hourBankDays.workDate, options.to),
       ))
       .orderBy(asc(hourBankDays.workDate))
@@ -106,13 +107,13 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
     movementMinutes: number;
     billedMinutes: number;
   }>();
-  for (const client of bankConfigurations) {
-    let balance = client.initialMinutes;
-    for (const day of bankDays.filter((item) => item.clientId === client.id)) {
+  for (const project of bankConfigurations) {
+    let balance = project.initialMinutes;
+    for (const day of bankDays.filter((item) => item.projectId === project.id)) {
       const openingMinutes = balance;
       balance += day.movementMinutes;
-      if (client.startDate && day.workDate >= client.startDate) {
-        bankByDate.set(`${client.id}:${day.workDate}`, {
+      if (project.startDate && day.workDate >= project.startDate) {
+        bankByDate.set(`${project.id}:${day.workDate}`, {
           openingMinutes,
           closingMinutes: balance,
           movementMinutes: day.movementMinutes,
@@ -142,7 +143,7 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (!options.confidential) columns.push({ header: text.rate, key: 'rate', width: 14 }, { header: text.value, key: 'value', width: 16 });
   sheet.columns = columns;
   for (const row of rows) {
-    const bank = bankByDate.get(`${row.clientId}:${row.workDate}`);
+    const bank = bankByDate.get(`${row.projectId}:${row.workDate}`);
     // L'export destiné au client utilise directement le temps client enregistré
     // sur chaque entrée; le temps réellement travaillé demeure interne.
     const durationMinutes = row.clientMinutes;

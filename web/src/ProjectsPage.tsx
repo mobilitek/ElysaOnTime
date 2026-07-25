@@ -1,10 +1,16 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
+import { completeWholeHours } from './durationInput';
 
 type Language = 'fr' | 'en';
 type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
 type Client = { id: string; name: string; isActive: boolean };
-type Project = { id: string; clientId: string; name: string; hourlyRate: string; isActive: boolean };
+type Project = {
+  id: string; clientId: string; name: string; hourlyRate: string; isActive: boolean;
+  hourBankEnabled: boolean; hourBankStartDate: string | null;
+  hourBankInitialMinutes: number; maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number;
+};
 type RateMode = 'future_only' | 'update_unbilled';
 
 type Props = {
@@ -26,6 +32,12 @@ const copy = {
     rateChanged: 'Comment appliquer le nouveau taux?', futureOnly: 'Nouvelles entrées seulement',
     futureHint: 'Les anciennes entrées conservent leur taux.', updateUnbilled: 'Mettre à jour les entrées non facturées',
     updateHint: 'Le taux et la valeur des entrées non facturées seront recalculés.', toggle: 'Changer le statut de',
+    bank: 'Banque d’heures', bankEnabled: 'Activer la banque pour ce projet',
+    bankStart: 'Date de début', initialBalance: 'Solde initial (HH:MM)',
+    dailyMaximum: 'Maximum facturable quotidien (HH:MM)',
+    weeklyMaximum: 'Maximum facturable hebdomadaire (HH:MM)',
+    invalidBank: 'Vérifiez la date et les limites facturables du projet.',
+    completeHours: 'Voulez-vous interpréter ces valeurs comme des heures complètes?',
   },
   en: {
     workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile', logout: 'Sign out', confidential: 'Confidential',
@@ -40,10 +52,21 @@ const copy = {
     rateChanged: 'How should the new rate apply?', futureOnly: 'New entries only',
     futureHint: 'Existing entries keep their rate.', updateUnbilled: 'Update unbilled entries',
     updateHint: 'Rates and values for unbilled entries will be recalculated.', toggle: 'Change status for',
+    bank: 'Hour bank', bankEnabled: 'Enable the bank for this project',
+    bankStart: 'Start date', initialBalance: 'Initial balance (HH:MM)',
+    dailyMaximum: 'Daily billable maximum (HH:MM)',
+    weeklyMaximum: 'Weekly billable maximum (HH:MM)',
+    invalidBank: 'Check the project’s date and billable limits.',
+    completeHours: 'Do you want to interpret these values as whole hours?',
   },
 } as const;
 
 const validRate = /^\d{1,10}(\.\d{1,2})?$/;
+const formatDuration = (minutes: number) => `${minutes < 0 ? '-' : ''}${String(Math.floor(Math.abs(minutes) / 60)).padStart(2, '0')}:${String(Math.abs(minutes) % 60).padStart(2, '0')}`;
+const parseDuration = (value: string) => {
+  const match = /^(-)?(\d+):([0-5]\d)$/.exec(value.trim());
+  return match ? (match[1] ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : null;
+};
 
 export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile, onNavigateAdmin }: Props) {
   const text = copy[language];
@@ -57,6 +80,11 @@ export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLa
   const [name, setName] = useState('');
   const [rate, setRate] = useState('0.00');
   const [rateMode, setRateMode] = useState<RateMode>('future_only');
+  const [hourBankEnabled, setHourBankEnabled] = useState(false);
+  const [hourBankStartDate, setHourBankStartDate] = useState('');
+  const [hourBankInitial, setHourBankInitial] = useState('00:00');
+  const [maxDaily, setMaxDaily] = useState('08:00');
+  const [maxWeekly, setMaxWeekly] = useState('40:00');
   const [error, setError] = useState<string | null>(null);
   const [confidential, setConfidential] = useState(document.cookie.includes('ontime_confidential=true'));
 
@@ -89,8 +117,8 @@ export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLa
     void load();
   }, [clientId]);
 
-  const openCreate = () => { setEditing(null); setName(''); setRate('0.00'); setRateMode('future_only'); setError(null); setIsFormOpen(true); };
-  const openEdit = (project: Project) => { setEditing(project); setName(project.name); setRate(Number(project.hourlyRate).toFixed(2)); setRateMode('future_only'); setError(null); setIsFormOpen(true); };
+  const openCreate = () => { setEditing(null); setName(''); setRate('0.00'); setRateMode('future_only'); setHourBankEnabled(false); setHourBankStartDate(new Date().toISOString().slice(0, 10)); setHourBankInitial('00:00'); setMaxDaily('08:00'); setMaxWeekly('40:00'); setError(null); setIsFormOpen(true); };
+  const openEdit = (project: Project) => { setEditing(project); setName(project.name); setRate(Number(project.hourlyRate).toFixed(2)); setRateMode('future_only'); setHourBankEnabled(project.hourBankEnabled); setHourBankStartDate(project.hourBankStartDate ?? new Date().toISOString().slice(0, 10)); setHourBankInitial(formatDuration(project.hourBankInitialMinutes)); setMaxDaily(formatDuration(project.maxDailyBillableMinutes)); setMaxWeekly(formatDuration(project.maxWeeklyBillableMinutes)); setError(null); setIsFormOpen(true); };
   const closeForm = () => { setIsFormOpen(false); setEditing(null); setError(null); };
   const rateHasChanged = Boolean(editing && validRate.test(rate) && Number(rate).toFixed(2) !== Number(editing.hourlyRate).toFixed(2));
 
@@ -98,14 +126,25 @@ export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLa
     event.preventDefault();
     if (!name.trim() || !rate.trim()) { setError(text.required); return; }
     if (!validRate.test(rate)) { setError(text.invalidRate); return; }
+    const completedInitial = completeWholeHours(hourBankInitial, true);
+    const completedDaily = completeWholeHours(maxDaily);
+    const completedWeekly = completeWholeHours(maxWeekly);
+    const suggestions = [completedInitial, completedDaily, completedWeekly].filter(Boolean);
+    if (suggestions.length && !confirm(`${text.completeHours}\n\n${suggestions.join('\n')}`)) return;
+    const initialMinutes = parseDuration(completedInitial ?? hourBankInitial);
+    const dailyMinutes = parseDuration(completedDaily ?? maxDaily);
+    const weeklyMinutes = parseDuration(completedWeekly ?? maxWeekly);
+    if ((hourBankEnabled && !hourBankStartDate) || initialMinutes === null || dailyMinutes === null || weeklyMinutes === null || dailyMinutes <= 0 || weeklyMinutes <= 0) {
+      setError(text.invalidBank); return;
+    }
     setIsSaving(true); setError(null);
     try {
       const response = await fetch(editing ? `/api/projects/${editing.id}` : '/api/projects', {
         method: editing ? 'PATCH' : 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
         // Le mode d'application est envoyé seulement si le taux change réellement.
         body: JSON.stringify(editing
-          ? { name: name.trim(), hourlyRate: Number(rate).toFixed(2), ...(rateHasChanged ? { rateUpdateMode: rateMode } : {}) }
-          : { clientId, name: name.trim(), hourlyRate: Number(rate).toFixed(2) }),
+          ? { name: name.trim(), hourlyRate: Number(rate).toFixed(2), ...(rateHasChanged ? { rateUpdateMode: rateMode } : {}), hourBankEnabled, hourBankStartDate: hourBankEnabled ? hourBankStartDate : null, hourBankInitialMinutes: initialMinutes, maxDailyBillableMinutes: dailyMinutes, maxWeeklyBillableMinutes: weeklyMinutes }
+          : { clientId, name: name.trim(), hourlyRate: Number(rate).toFixed(2), hourBankEnabled, hourBankStartDate: hourBankEnabled ? hourBankStartDate : null, hourBankInitialMinutes: initialMinutes, maxDailyBillableMinutes: dailyMinutes, maxWeeklyBillableMinutes: weeklyMinutes }),
       });
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
@@ -145,9 +184,9 @@ export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLa
         {!clientId ? <div className="empty-state"><span className="empty-icon">P</span><h2>{text.noActiveClient}</h2><button className="primary-button small" type="button" onClick={onNavigateClients}>{text.manageClients}</button></div>
           : isLoading ? <div className="empty-state"><span className="loading-ring" /></div>
             : projects.length === 0 ? <div className="empty-state"><span className="empty-icon">P</span><h2>{text.empty}</h2><p>{text.emptyHint}</p><button className="primary-button small" type="button" onClick={openCreate}>{text.add}</button></div>
-              : <div className={`client-table project-table ${confidential ? 'confidential-projects' : ''}`}><div className="client-row client-table-head"><span>{text.name}</span>{!confidential ? <span>{text.rate}</span> : null}<span>{text.status}</span><span className="action-column">{text.actions}</span></div>{projects.map((project) => <div className={`client-row ${project.isActive ? '' : 'inactive'}`} key={project.id}><div className="client-name"><span className="client-avatar">P</span><strong>{project.name}</strong></div>{!confidential ? <strong className="rate-value">${Number(project.hourlyRate).toFixed(2)}</strong> : null}<button className={`status-toggle ${project.isActive ? 'active' : ''}`} type="button" onClick={() => void toggle(project)} aria-label={`${text.toggle} ${project.name}`}><span className="toggle-track"><span /></span>{project.isActive ? text.active : text.inactive}</button><div className="action-column"><button className="edit-button" type="button" onClick={() => openEdit(project)}>{text.edit}</button></div></div>)}</div>}
+              : <div className={`client-table project-table ${confidential ? 'confidential-projects' : ''}`}><div className="client-row client-table-head"><span>{text.name}</span>{!confidential ? <span>{text.rate}</span> : null}<span>{text.status}</span><span className="action-column">{text.actions}</span></div>{projects.map((project) => <div className={`client-row ${project.isActive ? '' : 'inactive'}`} key={project.id}><div className="client-name"><span className="client-avatar">P</span><span><strong>{project.name}</strong>{project.hourBankEnabled ? <small className="bank-enabled-label">{text.bank}</small> : null}</span></div>{!confidential ? <strong className="rate-value">${Number(project.hourlyRate).toFixed(2)}</strong> : null}<button className={`status-toggle ${project.isActive ? 'active' : ''}`} type="button" onClick={() => void toggle(project)} aria-label={`${text.toggle} ${project.name}`}><span className="toggle-track"><span /></span>{project.isActive ? text.active : text.inactive}</button><div className="action-column"><button className="edit-button" type="button" onClick={() => openEdit(project)}>{text.edit}</button></div></div>)}</div>}
       </div>
     </section>
-    {isFormOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}><section className="client-modal project-modal" role="dialog" aria-modal="true"><div className="modal-heading"><div><p className="eyebrow">PROJET</p><h2>{editing ? text.editTitle : text.createTitle}</h2></div><button type="button" className="close-button" onClick={closeForm}>×</button></div><form onSubmit={save}><label htmlFor="project-name">{text.name}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoFocus /><label htmlFor="project-rate">{text.rate}</label><div className="money-input"><span>$</span><input id="project-rate" inputMode="decimal" value={rate} onChange={(event) => setRate(event.target.value)} /></div>{rateHasChanged ? <fieldset className="rate-choice"><legend>{text.rateChanged}</legend><label><input type="radio" checked={rateMode === 'future_only'} onChange={() => setRateMode('future_only')} /><span><strong>{text.futureOnly}</strong><small>{text.futureHint}</small></span></label><label><input type="radio" checked={rateMode === 'update_unbilled'} onChange={() => setRateMode('update_unbilled')} /><span><strong>{text.updateUnbilled}</strong><small>{text.updateHint}</small></span></label></fieldset> : null}{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button className="secondary-button" type="button" onClick={closeForm}>{text.cancel}</button><button className="primary-button" type="submit" disabled={isSaving || !name.trim() || !rate.trim()}>{editing ? text.save : text.create}</button></div></form></section></div> : null}
+    {isFormOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}><section className="client-modal project-modal" role="dialog" aria-modal="true"><div className="modal-heading"><div><p className="eyebrow">PROJET</p><h2>{editing ? text.editTitle : text.createTitle}</h2></div><button type="button" className="close-button" onClick={closeForm}>×</button></div><form onSubmit={save}><label htmlFor="project-name">{text.name}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoFocus /><label htmlFor="project-rate">{text.rate}</label><div className="money-input"><span>$</span><input id="project-rate" inputMode="decimal" value={rate} onChange={(event) => setRate(event.target.value)} /></div>{rateHasChanged ? <fieldset className="rate-choice"><legend>{text.rateChanged}</legend><label><input type="radio" checked={rateMode === 'future_only'} onChange={() => setRateMode('future_only')} /><span><strong>{text.futureOnly}</strong><small>{text.futureHint}</small></span></label><label><input type="radio" checked={rateMode === 'update_unbilled'} onChange={() => setRateMode('update_unbilled')} /><span><strong>{text.updateUnbilled}</strong><small>{text.updateHint}</small></span></label></fieldset> : null}<fieldset className="hour-bank-settings"><legend>{text.bank}</legend><label className="bank-enable"><input type="checkbox" checked={hourBankEnabled} onChange={(event) => setHourBankEnabled(event.target.checked)} />{text.bankEnabled}</label>{hourBankEnabled ? <div className="bank-setting-grid"><label>{text.bankStart}<input type="date" value={hourBankStartDate} onChange={(event) => setHourBankStartDate(event.target.value)} /></label><label>{text.initialBalance}<input value={hourBankInitial} onChange={(event) => setHourBankInitial(event.target.value)} placeholder="00:00" /></label><label>{text.dailyMaximum}<input value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} placeholder="08:00" /></label><label>{text.weeklyMaximum}<input value={maxWeekly} onChange={(event) => setMaxWeekly(event.target.value)} placeholder="40:00" /></label></div> : null}</fieldset>{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button className="secondary-button" type="button" onClick={closeForm}>{text.cancel}</button><button className="primary-button" type="submit" disabled={isSaving || !name.trim() || !rate.trim()}>{editing ? text.save : text.create}</button></div></form></section></div> : null}
   </main>;
 }

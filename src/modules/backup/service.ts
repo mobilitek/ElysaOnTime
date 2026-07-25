@@ -24,11 +24,11 @@ type BackupClient = {
   id: string;
   name: string;
   isActive: boolean;
-  hourBankEnabled: boolean;
-  hourBankStartDate: string | null;
-  hourBankInitialMinutes: number;
-  maxDailyBillableMinutes: number;
-  maxWeeklyBillableMinutes: number;
+  hourBankEnabled?: boolean;
+  hourBankStartDate?: string | null;
+  hourBankInitialMinutes?: number;
+  maxDailyBillableMinutes?: number;
+  maxWeeklyBillableMinutes?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -38,6 +38,11 @@ type BackupProject = {
   name: string;
   hourlyRate: string;
   isActive: boolean;
+  hourBankEnabled: boolean;
+  hourBankStartDate: string | null;
+  hourBankInitialMinutes: number;
+  maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -57,7 +62,7 @@ type BackupEntry = {
 };
 type BackupClosure = {
   id: string;
-  clientId: string;
+  projectId: string;
   weekStart: string;
   weekEnd: string;
   actualMinutes: number;
@@ -162,12 +167,30 @@ export const validateBackup = (value: unknown): BackupDocument => {
   });
   const parsedProjects = rawProjects.map((row) => {
     if (!isRecord(row)) throw new InvalidBackupFileError('INVALID_PROJECT');
+    const legacyClient = parsedClients.find((client) => client.id === row.clientId);
     return {
       id: requiredString(row.id, 'project_id', uuidPattern),
       clientId: requiredString(row.clientId, 'project_client_id', uuidPattern),
       name: requiredString(row.name, 'project_name'),
       hourlyRate: requiredString(row.hourlyRate, 'project_hourly_rate', unsignedDecimalPattern),
       isActive: requiredBoolean(row.isActive, 'project_active'),
+      hourBankEnabled: row.hourBankEnabled === undefined
+        ? legacyClient?.hourBankEnabled ?? false
+        : requiredBoolean(row.hourBankEnabled, 'project_hour_bank_enabled'),
+      hourBankStartDate: row.hourBankStartDate === undefined
+        ? legacyClient?.hourBankStartDate ?? null
+        : row.hourBankStartDate === null
+          ? null
+          : requiredString(row.hourBankStartDate, 'project_hour_bank_start_date', datePattern),
+      hourBankInitialMinutes: row.hourBankInitialMinutes === undefined
+        ? legacyClient?.hourBankInitialMinutes ?? 0
+        : integer(row.hourBankInitialMinutes, 'project_hour_bank_initial_minutes'),
+      maxDailyBillableMinutes: row.maxDailyBillableMinutes === undefined
+        ? legacyClient?.maxDailyBillableMinutes ?? 480
+        : integer(row.maxDailyBillableMinutes, 'project_daily_maximum', 1),
+      maxWeeklyBillableMinutes: row.maxWeeklyBillableMinutes === undefined
+        ? legacyClient?.maxWeeklyBillableMinutes ?? 2400
+        : integer(row.maxWeeklyBillableMinutes, 'project_weekly_maximum', 1),
       createdAt: timestamp(row.createdAt, 'project_created_at'),
       updatedAt: timestamp(row.updatedAt, 'project_updated_at'),
     };
@@ -200,7 +223,10 @@ export const validateBackup = (value: unknown): BackupDocument => {
     if (!isRecord(row)) throw new InvalidBackupFileError('INVALID_HOUR_BANK_CLOSURE');
     return {
       id: requiredString(row.id, 'closure_id', uuidPattern),
-      clientId: requiredString(row.clientId, 'closure_client_id', uuidPattern),
+      projectId: row.projectId === undefined
+        ? parsedProjects.find((project) => project.clientId === row.clientId)?.id
+          ?? requiredString(row.projectId, 'closure_project_id', uuidPattern)
+        : requiredString(row.projectId, 'closure_project_id', uuidPattern),
       weekStart: requiredString(row.weekStart, 'closure_week_start', datePattern),
       weekEnd: requiredString(row.weekEnd, 'closure_week_end', datePattern),
       actualMinutes: integer(row.actualMinutes, 'closure_actual_minutes', 0),
@@ -236,7 +262,7 @@ export const validateBackup = (value: unknown): BackupDocument => {
   // et empêche toute restauration partielle ou incohérente.
   if (parsedProjects.some((row) => !clientIds.has(row.clientId))) throw new InvalidBackupFileError('UNKNOWN_CLIENT');
   if (parsedEntries.some((row) => !projectIds.has(row.projectId))) throw new InvalidBackupFileError('UNKNOWN_PROJECT');
-  if (parsedClosures.some((row) => !clientIds.has(row.clientId))) throw new InvalidBackupFileError('UNKNOWN_CLOSURE_CLIENT');
+  if (parsedClosures.some((row) => !projectIds.has(row.projectId))) throw new InvalidBackupFileError('UNKNOWN_CLOSURE_PROJECT');
   if (parsedDays.some((row) => !closureIds.has(row.closureId))) throw new InvalidBackupFileError('UNKNOWN_HOUR_BANK_CLOSURE');
   if (parsedClosures.some((row) => row.movementMinutes !== row.actualMinutes - row.billedMinutes)) {
     throw new InvalidBackupFileError('INVALID_CLOSURE_MOVEMENT');
@@ -333,7 +359,8 @@ export const restoreBackup = async (userId: string, backup: BackupDocument) => {
     }
     if (backup.data.clients.length) {
       await transaction.insert(clients).values(backup.data.clients.map((row) => ({
-        ...row, userId, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt),
+        id: row.id, name: row.name, isActive: row.isActive,
+        userId, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt),
       })));
     }
     if (backup.data.projects.length) {

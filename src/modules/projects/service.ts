@@ -9,6 +9,11 @@ export type ProjectRecord = {
   name: string;
   hourlyRate: string;
   isActive: boolean;
+  hourBankEnabled: boolean;
+  hourBankStartDate: string | null;
+  hourBankInitialMinutes: number;
+  maxDailyBillableMinutes: number;
+  maxWeeklyBillableMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -52,6 +57,11 @@ const assertUniqueName = async (clientId: string, name: string, excludedId?: str
 const projectSelection = {
   id: projects.id, clientId: projects.clientId, name: projects.name,
   hourlyRate: projects.hourlyRate, isActive: projects.isActive,
+  hourBankEnabled: projects.hourBankEnabled,
+  hourBankStartDate: projects.hourBankStartDate,
+  hourBankInitialMinutes: projects.hourBankInitialMinutes,
+  maxDailyBillableMinutes: projects.maxDailyBillableMinutes,
+  maxWeeklyBillableMinutes: projects.maxWeeklyBillableMinutes,
   createdAt: projects.createdAt, updatedAt: projects.updatedAt,
 };
 
@@ -67,7 +77,12 @@ export const listProjects = async (userId: string, clientId: string): Promise<Pr
 
 export const createProject = async (
   userId: string,
-  input: { clientId: string; name: string; hourlyRate: string },
+  input: {
+    clientId: string; name: string; hourlyRate: string;
+    hourBankEnabled?: boolean; hourBankStartDate?: string | null;
+    hourBankInitialMinutes?: number; maxDailyBillableMinutes?: number;
+    maxWeeklyBillableMinutes?: number;
+  },
 ): Promise<ProjectRecord> => {
   await requireActiveClient(userId, input.clientId);
   const name = normalizeName(input.name);
@@ -75,7 +90,15 @@ export const createProject = async (
   const hourlyRate = normalizeRate(input.hourlyRate);
   await assertUniqueName(input.clientId, name);
 
-  const [project] = await database.insert(projects).values({ clientId: input.clientId, name, hourlyRate })
+  if (input.hourBankEnabled && !input.hourBankStartDate) throw new Error('Hour bank start date is required');
+  const [project] = await database.insert(projects).values({
+    clientId: input.clientId, name, hourlyRate,
+    hourBankEnabled: input.hourBankEnabled ?? false,
+    hourBankStartDate: input.hourBankEnabled ? input.hourBankStartDate : null,
+    hourBankInitialMinutes: input.hourBankInitialMinutes ?? 0,
+    maxDailyBillableMinutes: input.maxDailyBillableMinutes ?? 480,
+    maxWeeklyBillableMinutes: input.maxWeeklyBillableMinutes ?? 2400,
+  })
     .returning(projectSelection);
   if (!project) throw new Error('Project creation failed');
   return project;
@@ -84,7 +107,12 @@ export const createProject = async (
 export const updateProject = async (
   userId: string,
   projectId: string,
-  input: { name?: string; hourlyRate?: string; isActive?: boolean; rateUpdateMode?: RateUpdateMode },
+  input: {
+    name?: string; hourlyRate?: string; isActive?: boolean; rateUpdateMode?: RateUpdateMode;
+    hourBankEnabled?: boolean; hourBankStartDate?: string | null;
+    hourBankInitialMinutes?: number; maxDailyBillableMinutes?: number;
+    maxWeeklyBillableMinutes?: number;
+  },
 ): Promise<ProjectRecord> => {
   const [existing] = await database.select(projectSelection).from(projects)
     .innerJoin(clients, eq(projects.clientId, clients.id))
@@ -100,12 +128,31 @@ export const updateProject = async (
   // Une modification de taux exige une décision explicite : préserver tout
   // l'historique ou recalculer seulement les entrées non facturées.
   if (rateChanged && !input.rateUpdateMode) throw new RateUpdateModeRequiredError();
+  const hourBankEnabled = input.hourBankEnabled ?? existing.hourBankEnabled;
+  const hourBankStartDate = input.hourBankStartDate === undefined
+    ? existing.hourBankStartDate
+    : input.hourBankStartDate;
+  const maxDailyBillableMinutes = input.maxDailyBillableMinutes
+    ?? existing.maxDailyBillableMinutes;
+  const maxWeeklyBillableMinutes = input.maxWeeklyBillableMinutes
+    ?? existing.maxWeeklyBillableMinutes;
+  if (hourBankEnabled && !hourBankStartDate) throw new Error('Hour bank start date is required');
+  if (maxDailyBillableMinutes <= 0 || maxWeeklyBillableMinutes <= 0) {
+    throw new Error('Billable limits must be positive');
+  }
 
   // Le projet et les éventuelles entrées recalculées doivent changer ensemble.
   await database.transaction(async (transaction) => {
     await transaction.update(projects).set({
       name, hourlyRate,
       ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
+      ...(input.hourBankEnabled === undefined ? {} : { hourBankEnabled }),
+      ...(input.hourBankStartDate === undefined ? {} : { hourBankStartDate }),
+      ...(input.hourBankInitialMinutes === undefined
+        ? {}
+        : { hourBankInitialMinutes: input.hourBankInitialMinutes }),
+      ...(input.maxDailyBillableMinutes === undefined ? {} : { maxDailyBillableMinutes }),
+      ...(input.maxWeeklyBillableMinutes === undefined ? {} : { maxWeeklyBillableMinutes }),
       updatedAt: new Date(),
     }).where(eq(projects.id, projectId));
 
