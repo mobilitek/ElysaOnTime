@@ -129,6 +129,15 @@ const copy = {
   en: { journal: 'Work log', clients: 'My clients', projects: 'Projects', logout: 'Sign out', title: 'Work log', period: 'Period', day: 'Day', week: 'Week', month: 'Month', year: 'Year', custom: 'Custom', from: 'From', to: 'To', allClients: 'All clients', allProjects: 'All projects', chooseClient: 'Choose a client', chooseProject: 'Choose a project', client: 'Client', project: 'Project', add: 'New entry', export: 'Export Excel', backup: 'Backup', restore: 'Restore', date: 'Date', description: 'Description', hours: 'Hours', rate: 'Rate', value: 'Value', billed: 'Billed', items: 'Entries', confidential: 'Confidential', deleted: 'Show deleted', edit: 'Edit', duplicate: 'Copy', next: 'Copy to next business day', toggleBilled: 'Toggle billed', deleteEntry: 'Delete this entry', restoreEntry: 'Restore this entry', empty: 'No entries match these filters.', selectProject: 'You can select a client and project to filter the list.', newEntry: 'New entry', editEntry: 'Edit entry', back: 'Back', save: 'Save', duration: 'Worked hours (HH:MM)', clientDuration: 'Billable hours (HH:MM)', completeHours: 'Do you want to interpret these values as whole hours?', required: 'Client, project and description are required. Use HH:MM format and 15-minute increments.', warning: 'This entry is billed. Do you really want to continue?', confirmDelete: 'Do you really want to delete this entry?', error: 'Something went wrong.', page: 'Page', previous: 'Previous', following: 'Next', hourBank: 'Hour bank', actual: 'Actual', clientTime: 'Billable', bankMovement: 'Bank', openingBalance: 'Opening balance', closingBalance: 'Closing balance', closeWeek: 'Confirm week', updateWeek: 'Update week', reviewWeek: 'Review week', bankNote: 'Note (optional)', bankSaved: 'Weekly closure saved.', invalidBank: 'Billable hours must respect the project limits and 15-minute increments.', bankInconsistent: 'This week changed after it was closed. Save it again to synchronize its history.' },
 } as const;
 
+const exportBankReminder = {
+  fr: 'Au moins un projet concerné utilise une banque d’heures.\n\nAvant de remettre le fichier au client, assurez-vous d’avoir confirmé ou révisé chaque semaine exportée afin que les lignes « Code H » soient à jour.\n\nContinuer l’export?',
+  en: 'At least one affected project uses an hour bank.\n\nBefore sending the file to the client, make sure every exported week has been confirmed or reviewed so the “Code H” lines are current.\n\nContinue the export?',
+} as const;
+
+export const hasEnabledHourBank = (
+  items: Array<Pick<Project, 'hourBankEnabled' | 'isActive'>>,
+) => items.some((item) => item.isActive && item.hourBankEnabled);
+
 export function WorkLogPage(props: Props) {
   const { language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateClients, onNavigateProjects, onNavigateProfile, onNavigateAdmin } = props;
   const text = copy[language]; const today = useMemo(() => new Date(), []); const initial = useMemo(() => initialPeriod(today), [today]);
@@ -349,7 +358,57 @@ export function WorkLogPage(props: Props) {
     finally { setBankBusy(false); }
   };
   // Télécharger le Blob avec le nom de fichier calculé par le backend.
-  const exportExcel = async () => { if (exporting || from > to) return; setExporting(true); try { const params = new URLSearchParams({ from, to, includeDeleted: String(includeDeleted), confidential: String(confidential), language }); if (clientId) params.set('clientId', clientId); if (projectId) params.set('projectId', projectId); const response = await fetch(`/api/work-entries/export?${params}`, { credentials: 'include' }); if (!response.ok) { setError(text.error); return; } const blob = await response.blob(); const disposition = response.headers.get('content-disposition') ?? ''; const name = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'OnTime.xlsx'; const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name; link.click(); URL.revokeObjectURL(link.href); } finally { setExporting(false); } };
+  const exportExcel = async () => {
+    if (exporting || from > to) return;
+    setExporting(true);
+    setError('');
+    try {
+      // Avec un client sélectionné, sa liste de projets est déjà chargée. Pour
+      // « Tous les clients », les projets actifs sont consultés avant l'export
+      // afin que le rappel couvre réellement tout le fichier demandé.
+      let exportProjects = projects;
+      if (!clientId) {
+        const responses = await Promise.all(clients.map(async (client) => {
+          const response = await fetch(`/api/projects?clientId=${client.id}`, {
+            credentials: 'include',
+          });
+          if (!response.ok) throw new Error('Unable to inspect hour-bank projects');
+          return ((await response.json()) as { projects: Project[] }).projects;
+        }));
+        exportProjects = responses.flat();
+      }
+
+      if (hasEnabledHourBank(exportProjects) && !confirm(exportBankReminder[language])) {
+        return;
+      }
+
+      const params = new URLSearchParams({
+        from,
+        to,
+        includeDeleted: String(includeDeleted),
+        confidential: String(confidential),
+        language,
+      });
+      if (clientId) params.set('clientId', clientId);
+      if (projectId) params.set('projectId', projectId);
+      const response = await fetch(`/api/work-entries/export?${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) { setError(text.error); return; }
+      const blob = await response.blob();
+      const disposition = response.headers.get('content-disposition') ?? '';
+      const name = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'OnTime.xlsx';
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      setError(text.error);
+    } finally {
+      setExporting(false);
+    }
+  };
   const downloadBackup = async () => {
     if (backupBusy) return;
     setBackupBusy(true); setError('');

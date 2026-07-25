@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { firstDescriptionLine, possibleWorkingMinutes, shiftPeriod } from './WorkLogPage';
+import {
+  firstDescriptionLine,
+  hasEnabledHourBank,
+  possibleWorkingMinutes,
+  shiftPeriod,
+} from './WorkLogPage';
 
 describe('work log description preview', () => {
   test('keeps only the first line in the table preview', () => {
@@ -32,5 +37,21 @@ describe('possible monthly capacity', () => {
 
   test('excludes Saturdays and Sundays from a custom period', () => {
     expect(possibleWorkingMinutes('2026-07-03', '2026-07-06')).toBe(2 * 8 * 60);
+  });
+});
+
+describe('Excel export hour-bank reminder', () => {
+  test('is required when at least one active project uses an hour bank', () => {
+    expect(hasEnabledHourBank([
+      { isActive: true, hourBankEnabled: false },
+      { isActive: true, hourBankEnabled: true },
+    ])).toBe(true);
+  });
+
+  test('ignores disabled banks and inactive projects', () => {
+    expect(hasEnabledHourBank([
+      { isActive: true, hourBankEnabled: false },
+      { isActive: false, hourBankEnabled: true },
+    ])).toBe(false);
   });
 });
