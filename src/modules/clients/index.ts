@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
-import { getUserBySessionToken } from '../auth/service';
+import { getUserBySessionToken, hasFullAccess } from '../auth/service';
 import {
   ClientNotFoundError,
   createClient,
@@ -32,6 +32,7 @@ export const clientRoutes = new Elysia({ prefix: '/api/clients' })
       if (!user) {
         return status(401, { error: 'UNAUTHENTICATED', message: 'Authentication required' });
       }
+      if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
 
       try {
         return status(201, { client: await createClient(user.id, body.name) });
@@ -51,6 +52,7 @@ export const clientRoutes = new Elysia({ prefix: '/api/clients' })
       if (!user) {
         return status(401, { error: 'UNAUTHENTICATED', message: 'Authentication required' });
       }
+      if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
 
       try {
         return { client: await updateClient(user.id, params.id, body) };

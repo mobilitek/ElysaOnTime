@@ -1,8 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
+import { completeWholeHours } from './durationInput';
 
 type Language = 'fr' | 'en';
-type User = { id: string; email: string; firstName: string; lastName: string };
+type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
 type Client = {
   id: string; name: string; isActive: boolean;
   hourBankEnabled: boolean; hourBankStartDate: string | null;
@@ -20,6 +21,7 @@ type Props = {
   onNavigateWorkLog: () => void;
   onNavigateProjects: () => void;
   onNavigateProfile: () => void;
+  onNavigateAdmin: () => void;
 };
 
 const copy = {
@@ -36,7 +38,7 @@ const copy = {
     bank: 'Banque d’heures', bankEnabled: 'Activer la banque d’heures',
     bankStart: 'Date de début', initialBalance: 'Solde initial (HH:MM)',
     dailyMaximum: 'Maximum quotidien (HH:MM)', weeklyMaximum: 'Maximum hebdomadaire (HH:MM)',
-    invalidBank: 'Vérifiez la date et les valeurs de la banque d’heures.',
+    invalidBank: 'Vérifiez la date et les valeurs de la banque d’heures.', completeHours: 'Voulez-vous interpréter ces valeurs comme des heures complètes?',
   },
   en: {
     workLog: 'Work log', clients: 'My clients', projects: 'Projects', profile: 'Profile',
@@ -50,7 +52,7 @@ const copy = {
     logout: 'Sign out', loading: 'Loading…', toggle: 'Change status for',
     bank: 'Hour bank', bankEnabled: 'Enable hour bank', bankStart: 'Start date',
     initialBalance: 'Initial balance (HH:MM)', dailyMaximum: 'Daily maximum (HH:MM)',
-    weeklyMaximum: 'Weekly maximum (HH:MM)', invalidBank: 'Check the hour-bank date and values.',
+    weeklyMaximum: 'Weekly maximum (HH:MM)', invalidBank: 'Check the hour-bank date and values.', completeHours: 'Do you want to interpret these values as whole hours?',
   },
 } as const;
 
@@ -64,7 +66,7 @@ const minutes = (value: string) => {
   return match ? (match[1] ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : null;
 };
 
-export function ClientsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile }: Props) {
+export function ClientsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateProjects, onNavigateProfile, onNavigateAdmin }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,9 +116,21 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
     event.preventDefault();
     const normalizedName = name.trim();
     if (!normalizedName) { setError(text.required); return; }
-    const initialMinutes = minutes(hourBankInitial);
-    const dailyMinutes = minutes(maxDaily);
-    const weeklyMinutes = minutes(maxWeekly);
+    const completedInitial = completeWholeHours(hourBankInitial, true);
+    const completedDaily = completeWholeHours(maxDaily);
+    const completedWeekly = completeWholeHours(maxWeekly);
+    const suggestions = [
+      completedInitial ? `${hourBankInitial.trim()} → ${completedInitial}` : null,
+      completedDaily ? `${maxDaily.trim()} → ${completedDaily}` : null,
+      completedWeekly ? `${maxWeekly.trim()} → ${completedWeekly}` : null,
+    ].filter(Boolean);
+    if (editingClient && suggestions.length && !confirm(`${text.completeHours}\n\n${suggestions.join('\n')}`)) return;
+    if (completedInitial) setHourBankInitial(completedInitial);
+    if (completedDaily) setMaxDaily(completedDaily);
+    if (completedWeekly) setMaxWeekly(completedWeekly);
+    const initialMinutes = minutes(completedInitial ?? hourBankInitial);
+    const dailyMinutes = minutes(completedDaily ?? maxDaily);
+    const weeklyMinutes = minutes(completedWeekly ?? maxWeekly);
     if (editingClient && (
       (hourBankEnabled && !hourBankStartDate)
       || initialMinutes === null
@@ -183,6 +197,7 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
           <button type="button" className="active">{text.clients}</button>
           <button type="button" onClick={onNavigateProjects}>{text.projects}</button>
           <button type="button" onClick={onNavigateProfile}>{text.profile}</button>
+          {user.isAdmin ? <button type="button" onClick={onNavigateAdmin}>{language === 'fr' ? 'Administration' : 'Admin'}</button> : null}
         </nav>
         <div className="header-actions">
           <div className="language-switch compact">

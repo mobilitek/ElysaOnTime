@@ -3,6 +3,8 @@ import { Elysia } from 'elysia';
 import { config } from './config';
 import { database } from './database';
 import { auth } from './modules/auth';
+import { adminRoutes } from './modules/admin';
+import { subscriptionRoutes } from './modules/subscriptions';
 import { SESSION_COOKIE_NAME } from './modules/auth/constants';
 import { getSessionToken } from './modules/auth/cookie';
 import { getUserBySessionToken } from './modules/auth/service';
@@ -134,6 +136,8 @@ export const createApp = () =>
       };
     })
     .use(auth)
+    .use(adminRoutes)
+    .use(subscriptionRoutes)
     .use(backupRoutes)
     .use(clientRoutes)
     .use(dataImportRoutes)

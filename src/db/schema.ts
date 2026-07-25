@@ -29,6 +29,11 @@ export const users = pgTable(
     firstName: varchar('first_name', { length: 100 }).notNull(),
     lastName: varchar('last_name', { length: 100 }).notNull(),
     isAdmin: boolean('is_admin').notNull().default(false),
+    accountStatus: varchar('account_status', { length: 20 }).notNull().default('active'),
+    subscriptionStartedOn: date('subscription_started_on', { mode: 'string' })
+      .notNull()
+      .default(sql`current_date`),
+    subscriptionEndsOn: date('subscription_ends_on', { mode: 'string' }),
     ...timestamps,
   },
   (table) => [
@@ -37,6 +42,16 @@ export const users = pgTable(
     check('users_email_not_blank', sql`length(trim(${table.email})) > 0`),
     check('users_first_name_not_blank', sql`length(trim(${table.firstName})) > 0`),
     check('users_last_name_not_blank', sql`length(trim(${table.lastName})) > 0`),
+    index('users_account_status_idx').on(table.accountStatus),
+    index('users_subscription_ends_idx').on(table.subscriptionEndsOn),
+    check(
+      'users_account_status_valid',
+      sql`${table.accountStatus} in ('active', 'suspended', 'disabled')`,
+    ),
+    check(
+      'users_subscription_dates_valid',
+      sql`${table.subscriptionEndsOn} is null or ${table.subscriptionEndsOn} >= ${table.subscriptionStartedOn}`,
+    ),
   ],
 );
 
@@ -73,6 +88,39 @@ export const passwordResetTokens = pgTable(
     index('password_reset_tokens_user_id_idx').on(table.userId),
     index('password_reset_tokens_expires_at_idx').on(table.expiresAt),
     check('password_reset_tokens_hash_not_blank', sql`length(trim(${table.tokenHash})) > 0`),
+  ],
+);
+
+export const userSubscriptions = pgTable(
+  'user_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    periodStartedOn: date('period_started_on', { mode: 'string' }).notNull(),
+    periodEndsOn: date('period_ends_on', { mode: 'string' }).notNull(),
+    paymentDate: date('payment_date', { mode: 'string' }),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    subscriptionType: varchar('subscription_type', { length: 20 }).notNull().default('manual'),
+    paymentStatus: varchar('payment_status', { length: 20 }).notNull().default('paid'),
+    paymentProvider: varchar('payment_provider', { length: 50 }),
+    externalReference: varchar('external_reference', { length: 200 }),
+    note: text('note').notNull().default(''),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (table) => [
+    index('user_subscriptions_user_period_idx').on(table.userId, table.periodStartedOn),
+    index('user_subscriptions_payment_date_idx').on(table.paymentDate),
+    check('user_subscriptions_period_valid', sql`${table.periodEndsOn} >= ${table.periodStartedOn}`),
+    check('user_subscriptions_amount_non_negative', sql`${table.amount} >= 0`),
+    check(
+      'user_subscriptions_type_valid',
+      sql`${table.subscriptionType} in ('trial', 'free', 'paid', 'manual')`,
+    ),
+    check(
+      'user_subscriptions_payment_status_valid',
+      sql`${table.paymentStatus} in ('pending', 'paid', 'failed', 'refunded', 'cancelled')`,
+    ),
   ],
 );
 
@@ -241,6 +289,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   clients: many(clients),
   workEntries: many(workEntries),
   hourBankClosures: many(hourBankClosures),
+  subscriptions: many(userSubscriptions, { relationName: 'subscriptionOwner' }),
+  subscriptionsCreated: many(userSubscriptions, { relationName: 'subscriptionCreator' }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -254,6 +304,19 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   user: one(users, {
     fields: [passwordResetTokens.userId],
     references: [users.id],
+  }),
+}));
+
+export const userSubscriptionsRelations = relations(userSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSubscriptions.userId],
+    references: [users.id],
+    relationName: 'subscriptionOwner',
+  }),
+  createdBy: one(users, {
+    fields: [userSubscriptions.createdByUserId],
+    references: [users.id],
+    relationName: 'subscriptionCreator',
   }),
 }));
 

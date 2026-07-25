@@ -50,6 +50,27 @@
       "when": 1784942080031,
       "tag": "0006_backfill-client-minutes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784991152853,
+      "tag": "0007_jazzy_menace",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784994108799,
+      "tag": "0008_lame_bloodstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784995006133,
+      "tag": "0009_shocking_warlock",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,2 @@
+ALTER TABLE "user_subscriptions" ADD COLUMN "subscription_type" varchar(20) DEFAULT 'manual' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_subscriptions" ADD CONSTRAINT "user_subscriptions_type_valid" CHECK ("user_subscriptions"."subscription_type" in ('trial', 'free', 'paid', 'manual'));

@@ -3,11 +3,13 @@ import { ClientsPage } from './ClientsPage';
 import { ProjectsPage } from './ProjectsPage';
 import { WorkLogPage } from './WorkLogPage';
 import { ProfilePage } from './ProfilePage';
+import { AdminUsersPage } from './AdminUsersPage';
+import { SubscriptionExpiredPage } from './SubscriptionExpiredPage';
 import type { SystemInfo } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
-type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
-type Page = 'worklog' | 'clients' | 'projects' | 'profile';
+type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean; accountStatus: 'active' | 'suspended' | 'disabled'; subscriptionStartedOn: string; subscriptionEndsOn: string | null; accessLevel: 'full' | 'subscription_expired' };
+type Page = 'worklog' | 'clients' | 'projects' | 'profile' | 'admin';
 
 const copy = {
   fr: {
@@ -23,7 +25,7 @@ const copy = {
     signedIn: 'Votre session OnTime est active.', continue: 'Continuer vers le journal',
     logout: 'Se déconnecter', productTitle: 'Chaque heure compte.',
     productText: 'Consignez votre travail, suivez vos projets et préparez vos exports sans perdre le fil.',
-    createAccount: 'Créer un compte', haveAccount: 'J’ai déjà un compte', registerTitle: 'Créer votre compte', registerSubtitle: 'Commencez votre journal de travail OnTime.', firstName: 'Prénom', lastName: 'Nom', confirmPassword: 'Confirmer le mot de passe', register: 'Créer le compte', registering: 'Création…', mismatch: 'Les mots de passe ne correspondent pas.', emailExists: 'Cette adresse courriel est déjà utilisée.', accountCreated: 'Compte créé. Vous pouvez maintenant vous connecter.',
+    createAccount: 'Créer un compte', haveAccount: 'J’ai déjà un compte', registerTitle: 'Créer votre compte', registerSubtitle: 'Commencez votre journal de travail OnTime.', trialNotice: 'Votre compte comprend un essai gratuit de 7 jours, sans carte de crédit ni renouvellement automatique.', firstName: 'Prénom', lastName: 'Nom', confirmPassword: 'Confirmer le mot de passe', register: 'Créer le compte', registering: 'Création…', mismatch: 'Les mots de passe ne correspondent pas.', emailExists: 'Cette adresse courriel est déjà utilisée.', accountCreated: 'Compte créé. Votre essai gratuit de 7 jours est actif; consultez votre courriel pour connaître la période.',
     forgotTitle: 'Mot de passe oublié', forgotSubtitle: 'Entrez votre adresse courriel pour recevoir un lien sécurisé.', sendLink: 'Envoyer le lien', sendingLink: 'Envoi…', resetSent: 'Si un compte correspond à cette adresse, un courriel vient d’être envoyé.', backToLogin: 'Retour à la connexion',
     resetTitle: 'Nouveau mot de passe', resetSubtitle: 'Choisissez un nouveau mot de passe pour votre compte.', newPassword: 'Nouveau mot de passe', resetPassword: 'Modifier le mot de passe', resettingPassword: 'Modification…', resetComplete: 'Mot de passe modifié. Vous pouvez maintenant vous connecter.', invalidReset: 'Ce lien est invalide ou expiré. Demandez un nouveau lien.',
   },
@@ -39,7 +41,7 @@ const copy = {
     secure: 'Secure connection', welcome: 'Hello', signedIn: 'Your OnTime session is active.',
     continue: 'Continue to work log', logout: 'Sign out', productTitle: 'Every hour matters.',
     productText: 'Log your work, follow your projects and prepare exports without losing track.',
-    createAccount: 'Create an account', haveAccount: 'I already have an account', registerTitle: 'Create your account', registerSubtitle: 'Start your OnTime work log.', firstName: 'First name', lastName: 'Last name', confirmPassword: 'Confirm password', register: 'Create account', registering: 'Creating…', mismatch: 'Passwords do not match.', emailExists: 'This email address is already in use.', accountCreated: 'Account created. You can now sign in.',
+    createAccount: 'Create an account', haveAccount: 'I already have an account', registerTitle: 'Create your account', registerSubtitle: 'Start your OnTime work log.', trialNotice: 'Your account includes a free 7-day trial, with no credit card and no automatic renewal.', firstName: 'First name', lastName: 'Last name', confirmPassword: 'Confirm password', register: 'Create account', registering: 'Creating…', mismatch: 'Passwords do not match.', emailExists: 'This email address is already in use.', accountCreated: 'Account created. Your free 7-day trial is active; check your email for the trial period.',
     forgotTitle: 'Forgot password', forgotSubtitle: 'Enter your email address to receive a secure link.', sendLink: 'Send link', sendingLink: 'Sending…', resetSent: 'If an account matches this address, an email has just been sent.', backToLogin: 'Back to sign in',
     resetTitle: 'New password', resetSubtitle: 'Choose a new password for your account.', newPassword: 'New password', resetPassword: 'Change password', resettingPassword: 'Changing…', resetComplete: 'Password changed. You can now sign in.', invalidReset: 'This link is invalid or expired. Request a new link.',
   },
@@ -76,8 +78,8 @@ export function App() {
     // Synchroniser le titre et l'attribut lang améliore l'accessibilité et rend
     // chaque état d'authentification identifiable dans l'onglet du navigateur.
     const titles = language === 'fr'
-      ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil' }
-      : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile' };
+      ? { login: 'Connexion', register: 'Créer un compte', forgot: 'Mot de passe oublié', reset: 'Nouveau mot de passe', worklog: 'Journal', clients: 'Clients', projects: 'Projets', profile: 'Profil', admin: 'Administration' }
+      : { login: 'Sign in', register: 'Create account', forgot: 'Forgot password', reset: 'New password', worklog: 'Work log', clients: 'Clients', projects: 'Projects', profile: 'Profile', admin: 'Administration' };
     const section = user ? titles[page] : resetToken ? titles.reset : isForgotPassword ? titles.forgot : isRegistering ? titles.register : titles.login;
     document.title = `OnTime — ${section}`;
     document.documentElement.lang = language;
@@ -173,7 +175,7 @@ export function App() {
     if (password !== passwordConfirmation) { setError(text.mismatch); return; }
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email, password }) });
+      const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email, password, language }) });
       const payload = await response.json() as { error?: string };
       if (!response.ok) { setError(payload.error === 'EMAIL_EXISTS' ? text.emailExists : text.unavailable); return; }
       setIsRegistering(false); setFirstName(''); setLastName(''); setPassword(''); setPasswordConfirmation(''); setNotice(text.accountCreated);
@@ -232,10 +234,14 @@ export function App() {
   if (!isCheckingSession && user) {
     // La navigation de phase 1 demeure un état React simple; chaque page partage
     // l'utilisateur, la langue et les callbacks de la barre de navigation.
-    if (page === 'clients') return <ClientsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
-    if (page === 'projects') return <ProjectsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} />;
+    if (user.accessLevel === 'subscription_expired' && page !== 'profile') {
+      return <SubscriptionExpiredPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateProfile={() => setPage('profile')} />;
+    }
+    if (page === 'admin' && user.isAdmin) return <AdminUsersPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
+    if (page === 'clients') return <ClientsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
+    if (page === 'projects') return <ProjectsPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
     if (page === 'profile') return <ProfilePage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onUserChange={setUser} onLanguageChange={selectLanguage} onLogout={logout} onNavigateWorkLog={() => setPage('worklog')} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} />;
-    return <WorkLogPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} />;
+    return <WorkLogPage language={language} user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onNavigateClients={() => setPage('clients')} onNavigateProjects={() => setPage('projects')} onNavigateProfile={() => setPage('profile')} onNavigateAdmin={() => setPage('admin')} />;
   }
 
   return (
@@ -263,6 +269,7 @@ export function App() {
             {isCheckingSession ? <div className="session-loading" aria-live="polite"><span className="loading-ring" /></div>
               : (
                 <><p className="eyebrow">{text.eyebrow}</p><h1>{resetToken ? text.resetTitle : isForgotPassword ? text.forgotTitle : isRegistering ? text.registerTitle : text.title}</h1><p className="form-subtitle">{resetToken ? text.resetSubtitle : isForgotPassword ? text.forgotSubtitle : isRegistering ? text.registerSubtitle : text.subtitle}</p>
+                  {isRegistering ? <p className="trial-registration-note">{text.trialNotice}</p> : null}
                   <form onSubmit={resetToken ? submitNewPassword : isForgotPassword ? requestPasswordReset : isRegistering ? register : login} noValidate>
                     {isRegistering ? <div className="registration-names"><label>{text.firstName}<input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={100} required disabled={isLoading} /></label><label>{text.lastName}<input value={lastName} onChange={(event) => setLastName(event.target.value)} maxLength={100} required disabled={isLoading} /></label></div> : null}
                     {!resetToken ? <><label htmlFor="email">{text.email}</label><input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={text.emailPlaceholder} autoComplete="email" required disabled={isLoading} /></> : null}

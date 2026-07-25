@@ -23,6 +23,10 @@ export type AuthenticatedUser = {
   firstName: string;
   lastName: string;
   isAdmin: boolean;
+  accountStatus: 'active' | 'suspended' | 'disabled';
+  subscriptionStartedOn: string;
+  subscriptionEndsOn: string | null;
+  accessLevel: 'full' | 'subscription_expired';
 };
 
 export type CreatedSession = {
@@ -53,6 +57,31 @@ export class UserNotFoundError extends Error {
   constructor() { super('User not found'); this.name = 'UserNotFoundError'; }
 }
 
+const authenticatedUserSelection = {
+  id: users.id,
+  email: users.email,
+  firstName: users.firstName,
+  lastName: users.lastName,
+  isAdmin: users.isAdmin,
+  accountStatus: users.accountStatus,
+  subscriptionStartedOn: users.subscriptionStartedOn,
+  subscriptionEndsOn: users.subscriptionEndsOn,
+} as const;
+
+const asAuthenticatedUser = (
+  user: Omit<AuthenticatedUser, 'accountStatus' | 'accessLevel'> & { accountStatus: string },
+): AuthenticatedUser => ({
+  ...user,
+  accountStatus: user.accountStatus as AuthenticatedUser['accountStatus'],
+  accessLevel: user.isAdmin || !user.subscriptionEndsOn
+    || user.subscriptionEndsOn >= new Date().toISOString().slice(0, 10)
+    ? 'full'
+    : 'subscription_expired',
+});
+
+export const hasFullAccess = (user: AuthenticatedUser): boolean =>
+  user.accessLevel === 'full';
+
 const assertUniqueEmail = async (email: string, excludedUserId?: string) => {
   // La même vérification sert à la création et à l'édition du profil.
   // L'utilisateur courant est ignoré pendant sa propre modification.
@@ -80,27 +109,21 @@ export const createUser = async (input: CreateUserInput): Promise<AuthenticatedU
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
     })
-    .returning({
-      id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      isAdmin: users.isAdmin,
-    });
+    .returning(authenticatedUserSelection);
 
   if (!user) {
     throw new Error('User creation failed');
   }
 
-  return user;
+  return asAuthenticatedUser(user);
 };
 
 export const updateProfile = async (userId: string, input: { email: string; firstName: string; lastName: string }): Promise<AuthenticatedUser> => {
   const email = normalizeEmail(input.email); const firstName = input.firstName.trim(); const lastName = input.lastName.trim();
   await assertUniqueEmail(email, userId);
-  const [user] = await database.update(users).set({ email, firstName, lastName, updatedAt: new Date() }).where(eq(users.id, userId)).returning({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, isAdmin: users.isAdmin });
+  const [user] = await database.update(users).set({ email, firstName, lastName, updatedAt: new Date() }).where(eq(users.id, userId)).returning(authenticatedUserSelection);
   if (!user) throw new UserNotFoundError();
-  return user;
+  return asAuthenticatedUser(user);
 };
 
 export const setAdminByEmail = async (emailInput: string, isAdmin: boolean): Promise<AuthenticatedUser> => {
@@ -109,15 +132,9 @@ export const setAdminByEmail = async (emailInput: string, isAdmin: boolean): Pro
     .update(users)
     .set({ isAdmin, updatedAt: new Date() })
     .where(sql`lower(trim(${users.email})) = ${email}`)
-    .returning({
-      id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      isAdmin: users.isAdmin,
-    });
+    .returning(authenticatedUserSelection);
   if (!user) throw new UserNotFoundError();
-  return user;
+  return asAuthenticatedUser(user);
 };
 
 export const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<void> => {
@@ -197,6 +214,10 @@ export const authenticate = async (
       firstName: users.firstName,
       lastName: users.lastName,
       isAdmin: users.isAdmin,
+      accountStatus: users.accountStatus,
+      subscriptionStartedOn: users.subscriptionStartedOn,
+      subscriptionEndsOn: users.subscriptionEndsOn,
+      accessAllowed: sql<boolean>`${users.accountStatus} = 'active'`,
     })
     .from(users)
     .where(sql`lower(trim(${users.email})) = ${email}`)
@@ -204,7 +225,7 @@ export const authenticate = async (
 
   // Une réponse unique pour l'utilisateur absent et le mauvais mot de passe
   // empêche l'appelant de déduire quels courriels possèdent un compte.
-  if (!user || !(await Bun.password.verify(password, user.passwordHash))) {
+  if (!user || !user.accessAllowed || !(await Bun.password.verify(password, user.passwordHash))) {
     return null;
   }
 
@@ -225,13 +246,16 @@ export const authenticate = async (
   return {
     token,
     expiresAt,
-    user: {
+    user: asAuthenticatedUser({
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       isAdmin: user.isAdmin,
-    },
+      accountStatus: user.accountStatus,
+      subscriptionStartedOn: user.subscriptionStartedOn,
+      subscriptionEndsOn: user.subscriptionEndsOn,
+    }),
   };
 };
 
@@ -245,24 +269,19 @@ export const getUserBySessionToken = async (
   // Une session expirée est considérée absente, même si sa ligne n'a pas encore
   // été purgée physiquement de la base de données.
   const [result] = await database
-    .select({
-      id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      isAdmin: users.isAdmin,
-    })
+    .select(authenticatedUserSelection)
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(
       and(
         eq(sessions.tokenHash, hashSessionToken(token)),
         gt(sessions.expiresAt, new Date()),
+        eq(users.accountStatus, 'active'),
       ),
     )
     .limit(1);
 
-  return result ?? null;
+  return result ? asAuthenticatedUser(result) : null;
 };
 
 export const deleteSession = async (token: string | undefined): Promise<void> => {

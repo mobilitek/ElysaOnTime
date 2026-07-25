@@ -5,7 +5,8 @@ import {
   SESSION_COOKIE_NAME,
 } from './constants';
 import { getSessionToken } from './cookie';
-import { sendPasswordResetEmail } from '../email/service';
+import { sendPasswordResetEmail, sendWelcomeEmail } from '../email/service';
+import { createTrialSubscription } from '../subscriptions/service';
 import { authenticate, changePassword, createPasswordReset, createUser, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, resetPassword, updateProfile } from './service';
 
 const credentialsSchema = t.Object({
@@ -20,9 +21,32 @@ const credentialsSchema = t.Object({
  */
 export const auth = new Elysia({ prefix: '/api/auth' })
   .post('/register', async ({ body, status }) => {
-    try { return status(201, { user: await createUser(body) }); }
+    try {
+      const user = await createUser(body);
+      const trial = await createTrialSubscription(user.id);
+      const registeredUser = {
+        ...user,
+        subscriptionStartedOn: trial.periodStartedOn,
+        subscriptionEndsOn: trial.periodEndsOn,
+      };
+      // Les tests d'intégration ne doivent jamais expédier de vrais courriels.
+      try {
+        if (process.env.RUN_INTEGRATION_TESTS === '1') {
+          return status(201, { user: registeredUser });
+        }
+        await sendWelcomeEmail(
+          { email: registeredUser.email, firstName: registeredUser.firstName },
+          body.language,
+          trial.periodStartedOn,
+          trial.periodEndsOn,
+        );
+      } catch (error) {
+        console.error('Unable to send welcome email', error);
+      }
+      return status(201, { user: registeredUser });
+    }
     catch (error) { if (error instanceof DuplicateEmailError) return status(409, { error: 'EMAIL_EXISTS' }); throw error; }
-  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }), password: t.String({ minLength: 8, maxLength: 200 }) }) })
+  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }), password: t.String({ minLength: 8, maxLength: 200 }), language: t.Union([t.Literal('fr'), t.Literal('en')]) }) })
   .post(
     '/login',
     async ({ body, cookie, status }) => {

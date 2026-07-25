@@ -2,14 +2,14 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
 
 type Language = 'fr' | 'en';
-type User = { id: string; email: string; firstName: string; lastName: string };
+type User = { id: string; email: string; firstName: string; lastName: string; isAdmin: boolean };
 type Client = { id: string; name: string; isActive: boolean };
 type Project = { id: string; clientId: string; name: string; hourlyRate: string; isActive: boolean };
 type RateMode = 'future_only' | 'update_unbilled';
 
 type Props = {
   language: Language; user: User; systemInfo: SystemInfo | null; systemInfoError: boolean; onLanguageChange: (language: Language) => void;
-  onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void; onNavigateProfile: () => void;
+  onLogout: () => Promise<void>; onNavigateWorkLog: () => void; onNavigateClients: () => void; onNavigateProfile: () => void; onNavigateAdmin: () => void;
 };
 
 const copy = {
@@ -45,7 +45,7 @@ const copy = {
 
 const validRate = /^\d{1,10}(\.\d{1,2})?$/;
 
-export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile }: Props) {
+export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLanguageChange, onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProfile, onNavigateAdmin }: Props) {
   const text = copy[language];
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState('');
@@ -134,7 +134,7 @@ export function ProjectsPage({ language, user, systemInfo, systemInfoError, onLa
   return <main className="app-page">
     <header className="app-header">
       <div className="app-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
-      <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button><button type="button" onClick={onNavigateProfile}>{text.profile}</button></nav>
+      <nav className="app-nav"><button type="button" onClick={onNavigateWorkLog}>{text.workLog}</button><button type="button" onClick={onNavigateClients}>{text.clients}</button><button type="button" className="active">{text.projects}</button><button type="button" onClick={onNavigateProfile}>{text.profile}</button>{user.isAdmin ? <button type="button" onClick={onNavigateAdmin}>{language === 'fr' ? 'Administration' : 'Admin'}</button> : null}</nav>
       <div className="header-actions"><label className="confidential-switch"><input type="checkbox" checked={confidential} onChange={(event) => { setConfidential(event.target.checked); document.cookie = `ontime_confidential=${event.target.checked}; Max-Age=31536000; Path=/; SameSite=Lax`; }} />{text.confidential}</label><div className="language-switch compact">{(['fr', 'en'] as const).map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => onLanguageChange(option)}>{option.toUpperCase()}</button>)}</div><UserEnvironmentChip user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} logoutLabel={text.logout} onLogout={onLogout} /></div>
     </header>
     <section className="content-shell">

@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
-import { getUserBySessionToken } from '../auth/service';
+import { getUserBySessionToken, hasFullAccess } from '../auth/service';
 import { InvalidImportFileError, parseImportFile, replaceUserData } from './service';
 
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
@@ -29,6 +29,7 @@ export const dataImportRoutes = new Elysia({ prefix: '/api/data-import' })
     const user = await userFor(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
     if (!user.isAdmin) return status(403, { error: 'ADMIN_REQUIRED' });
+    if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
     // L'opération remplace toutes les données métier du compte connecté.
     if (body.confirmation !== 'REMPLACER') return status(422, { error: 'CONFIRMATION_REQUIRED' });
     try {

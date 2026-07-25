@@ -9,7 +9,7 @@ let registeredUserId: string | undefined;
 
 const { createApp } = await import('../../app');
 const { database } = await import('../../database');
-const { users } = await import('../../db/schema');
+const { userSubscriptions, users } = await import('../../db/schema');
 const { createUser } = await import('./service');
 
 describe.skipIf(!runIntegrationTests)('authentication integration', () => {
@@ -49,10 +49,29 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
 
   test('registers a new user and rejects a duplicate email', async () => {
     const email = `register-${crypto.randomUUID()}@example.com`; const app = createApp();
-    const response = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: ' New ', lastName: ' User ', email: email.toUpperCase(), password: 'register-password' }) }));
+    const response = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: ' New ', lastName: ' User ', email: email.toUpperCase(), password: 'register-password', language: 'fr' }) }));
     expect(response.status).toBe(201); const payload = (await response.json()) as { user: { id: string; email: string; firstName: string; lastName: string } }; registeredUserId = payload.user.id;
-    expect(payload.user).toMatchObject({ email, firstName: 'New', lastName: 'User' });
-    const duplicate = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: 'Other', lastName: 'User', email, password: 'register-password' }) }));
+    expect(payload.user).toMatchObject({
+      email,
+      firstName: 'New',
+      lastName: 'User',
+      subscriptionStartedOn: expect.any(String),
+      subscriptionEndsOn: expect.any(String),
+    });
+    const [trial] = await database.select().from(userSubscriptions)
+      .where(eq(userSubscriptions.userId, registeredUserId)).limit(1);
+    expect(trial).toMatchObject({
+      amount: '0.00',
+      subscriptionType: 'trial',
+      paymentStatus: 'paid',
+      paymentDate: null,
+    });
+    const trialLength = (
+      new Date(`${trial!.periodEndsOn}T12:00:00Z`).getTime()
+      - new Date(`${trial!.periodStartedOn}T12:00:00Z`).getTime()
+    ) / 86_400_000;
+    expect(trialLength).toBe(6);
+    const duplicate = await app.handle(new Request('http://localhost/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstName: 'Other', lastName: 'User', email, password: 'register-password', language: 'en' }) }));
     expect(duplicate.status).toBe(409);
   });
 
@@ -78,6 +97,10 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
         firstName: 'Integration',
         lastName: 'Test',
         isAdmin: false,
+        accountStatus: 'active',
+        subscriptionStartedOn: expect.any(String),
+        subscriptionEndsOn: null,
+        accessLevel: 'full',
       },
     });
 

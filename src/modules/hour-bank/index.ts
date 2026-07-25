@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
-import { getUserBySessionToken } from '../auth/service';
+import { getUserBySessionToken, hasFullAccess } from '../auth/service';
 import {
   closeHourBankWeek,
   getHourBankWeek,
@@ -36,6 +36,7 @@ export const hourBankRoutes = new Elysia({ prefix: '/api/hour-bank' })
   .put('/week', async ({ body, cookie, status }) => {
     const user = await authenticatedUser(cookie[SESSION_COOKIE_NAME].value);
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
+    if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' });
     try {
       return await closeHourBankWeek(user.id, body.clientId, body.weekStart, body);
     } catch (error) {
