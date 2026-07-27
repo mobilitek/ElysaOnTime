@@ -21,6 +21,7 @@ type Props = {
   onUserChange: (user: User) => void; onLanguageChange: (value: Language) => void;
   onLogout: () => Promise<void>; onNavigateWorkLog: () => void;
   onNavigateClients: () => void; onNavigateProjects: () => void;
+  onNavigateAdmin: () => void;
 };
 
 const copy = {
@@ -70,7 +71,7 @@ const displayDate = (value: string | null, language: Language) =>
 
 export function ProfilePage({
   language, user, systemInfo, systemInfoError, onUserChange, onLanguageChange,
-  onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProjects,
+  onLogout, onNavigateWorkLog, onNavigateClients, onNavigateProjects, onNavigateAdmin,
 }: Props) {
   const text = copy[language];
   const [firstName, setFirstName] = useState(user.firstName);
@@ -133,6 +134,7 @@ export function ProfilePage({
           <button onClick={onNavigateClients}>{text.clients}</button>
           <button onClick={onNavigateProjects}>{text.projects}</button>
           <button className="active">{text.profile}</button>
+          {user.isAdmin ? <button type="button" onClick={onNavigateAdmin}>{language === 'fr' ? 'Administration' : 'Admin'}</button> : null}
         </nav>
         <div className="header-actions">
           <div className="language-switch compact">{(['fr', 'en'] as const).map((value) => <button key={value} className={language === value ? 'active' : ''} onClick={() => onLanguageChange(value)}>{value.toUpperCase()}</button>)}</div>
