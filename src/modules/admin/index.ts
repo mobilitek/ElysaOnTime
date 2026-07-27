@@ -86,7 +86,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       firstName: t.String({ minLength: 1, maxLength: 100 }),
       lastName: t.String({ minLength: 1, maxLength: 100 }),
       email: t.String({ format: 'email', maxLength: 320 }),
-      password: t.String({ minLength: 8, maxLength: 200 }),
+      password: t.String({ minLength: 12, maxLength: 200 }),
       isAdmin: t.Boolean(),
       accountStatus: status,
       subscriptionStartedOn: date,

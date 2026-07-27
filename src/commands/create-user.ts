@@ -22,9 +22,9 @@ try {
   const firstName = await askRequired('First name: ');
   const lastName = await askRequired('Last name: ');
   const email = await askRequired('Email: ');
-  const password = await askRequired('Password (minimum 8 characters): ');
+  const password = await askRequired('Password (minimum 12 characters): ');
 
-  if (password.length < 8) {
+  if (password.length < 12) {
     throw new Error('Password must contain at least 8 characters');
   }
 

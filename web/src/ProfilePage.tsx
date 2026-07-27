@@ -149,11 +149,11 @@ export function ProfilePage({
             <button className="primary-button" disabled={saving}>{text.save}</button>
           </form></section>
           <section className="profile-card"><h2>{text.password}</h2><form onSubmit={savePassword}>
-            <label>{text.current}<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} minLength={8} autoComplete="current-password" /></label>
-            <label>{text.next}<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} autoComplete="new-password" /></label>
-            <label>{text.confirm}<input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={8} autoComplete="new-password" /></label>
+            <label>{text.current}<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} minLength={1} autoComplete="current-password" /></label>
+            <label>{text.next}<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} autoComplete="new-password" /></label>
+            <label>{text.confirm}<input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={12} autoComplete="new-password" /></label>
             {passwordMessage ? <p className={passwordMessage === text.changed ? 'success-message' : 'error-message'}>{passwordMessage}</p> : null}
-            <button className="primary-button" disabled={saving || currentPassword.length < 8 || newPassword.length < 8 || confirmation.length < 8}>{text.change}</button>
+            <button className="primary-button" disabled={saving || currentPassword.length < 1 || newPassword.length < 12 || confirmation.length < 12}>{text.change}</button>
           </form></section>
         </div>
         <section className="profile-card subscription-profile-card">

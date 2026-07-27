@@ -10,7 +10,7 @@ COPY web ./web
 
 RUN bun run build:web
 
-FROM nginx:1.28-alpine
+FROM nginx:1.30.4-alpine
 
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/web /usr/share/nginx/html

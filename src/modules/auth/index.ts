@@ -8,10 +8,21 @@ import { getSessionToken } from './cookie';
 import { sendPasswordResetEmail, sendWelcomeEmail } from '../email/service';
 import { createTrialSubscription } from '../subscriptions/service';
 import { authenticate, changePassword, createPasswordReset, createUser, deleteSession, DuplicateEmailError, getUserBySessionToken, InvalidCurrentPasswordError, resetPassword, updateProfile } from './service';
+import { consumeRateLimits, requestAddress } from '../../security/rate-limit';
+
+const MINIMUM_NEW_PASSWORD_LENGTH = 12;
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+const rateLimited = (
+  status: (code: number, body: unknown) => unknown,
+) => status(429, { error: 'TOO_MANY_REQUESTS' });
 
 const credentialsSchema = t.Object({
   email: t.String({ format: 'email', maxLength: 320 }),
-  password: t.String({ minLength: 8, maxLength: 200 }),
+  // La connexion demeure compatible avec les anciens comptes; toute nouvelle
+  // valeur est soumise à la politique renforcée ci-dessous.
+  password: t.String({ minLength: 1, maxLength: 200 }),
   rememberMe: t.Optional(t.Boolean()),
 });
 
@@ -20,7 +31,13 @@ const credentialsSchema = t.Object({
  * Les schémas Elysia rejettent les données mal formées avant le service métier.
  */
 export const auth = new Elysia({ prefix: '/api/auth' })
-  .post('/register', async ({ body, status }) => {
+  .post('/register', async ({ body, request, status }) => {
+    const address = requestAddress(request);
+    if (!consumeRateLimits([
+      { key: `register:ip:${address}`, limit: 5, windowMs: ONE_HOUR_MS },
+      { key: `register:email:${body.email.trim().toLowerCase()}`, limit: 3, windowMs: ONE_HOUR_MS },
+    ])) return rateLimited(status);
+
     try {
       const user = await createUser(body);
       const trial = await createTrialSubscription(user.id);
@@ -46,10 +63,16 @@ export const auth = new Elysia({ prefix: '/api/auth' })
       return status(201, { user: registeredUser });
     }
     catch (error) { if (error instanceof DuplicateEmailError) return status(409, { error: 'EMAIL_EXISTS' }); throw error; }
-  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }), password: t.String({ minLength: 8, maxLength: 200 }), language: t.Union([t.Literal('fr'), t.Literal('en')]) }) })
+  }, { body: t.Object({ firstName: t.String({ minLength: 1, maxLength: 100 }), lastName: t.String({ minLength: 1, maxLength: 100 }), email: t.String({ format: 'email', maxLength: 320 }), password: t.String({ minLength: MINIMUM_NEW_PASSWORD_LENGTH, maxLength: 200 }), language: t.Union([t.Literal('fr'), t.Literal('en')]) }) })
   .post(
     '/login',
-    async ({ body, cookie, status }) => {
+    async ({ body, cookie, request, status }) => {
+      const address = requestAddress(request);
+      if (!consumeRateLimits([
+        { key: `login:ip:${address}`, limit: 60, windowMs: FIFTEEN_MINUTES_MS },
+        { key: `login:account:${body.email.trim().toLowerCase()}`, limit: 15, windowMs: FIFTEEN_MINUTES_MS },
+      ])) return rateLimited(status);
+
       const session = await authenticate(body.email, body.password, body.rememberMe ?? false);
 
       if (!session) {
@@ -86,7 +109,13 @@ export const auth = new Elysia({ prefix: '/api/auth' })
 
     return { success: true };
   })
-  .post('/forgot-password', async ({ body, status }) => {
+  .post('/forgot-password', async ({ body, request, status }) => {
+    const address = requestAddress(request);
+    if (!consumeRateLimits([
+      { key: `forgot:ip:${address}`, limit: 10, windowMs: ONE_HOUR_MS },
+      { key: `forgot:account:${body.email.trim().toLowerCase()}`, limit: 3, windowMs: ONE_HOUR_MS },
+    ])) return rateLimited(status);
+
     const reset = await createPasswordReset(body.email);
     if (reset) {
       try {
@@ -103,7 +132,13 @@ export const auth = new Elysia({ prefix: '/api/auth' })
       email: t.String({ format: 'email', maxLength: 320 }),
     }),
   })
-  .post('/reset-password', async ({ body, status }) => {
+  .post('/reset-password', async ({ body, request, status }) => {
+    const address = requestAddress(request);
+    if (!consumeRateLimits([
+      { key: `reset:ip:${address}`, limit: 20, windowMs: FIFTEEN_MINUTES_MS },
+      { key: `reset:token:${body.token}`, limit: 10, windowMs: FIFTEEN_MINUTES_MS },
+    ])) return rateLimited(status);
+
     if (!(await resetPassword(body.token, body.password))) {
       return status(422, { error: 'INVALID_OR_EXPIRED_TOKEN' });
     }
@@ -112,7 +147,7 @@ export const auth = new Elysia({ prefix: '/api/auth' })
   }, {
     body: t.Object({
       token: t.String({ minLength: 20, maxLength: 200 }),
-      password: t.String({ minLength: 8, maxLength: 200 }),
+      password: t.String({ minLength: MINIMUM_NEW_PASSWORD_LENGTH, maxLength: 200 }),
     }),
   })
   .get('/session', async ({ cookie, status }) => {
@@ -138,6 +173,10 @@ export const auth = new Elysia({ prefix: '/api/auth' })
   .post('/change-password', async ({ body, cookie, status }) => {
     const user = await getUserBySessionToken(getSessionToken(cookie[SESSION_COOKIE_NAME].value));
     if (!user) return status(401, { error: 'UNAUTHENTICATED' });
-    try { await changePassword(user.id, body.currentPassword, body.newPassword); return { success: true }; }
+    try {
+      await changePassword(user.id, body.currentPassword, body.newPassword);
+      cookie[SESSION_COOKIE_NAME].remove();
+      return { success: true };
+    }
     catch (error) { if (error instanceof InvalidCurrentPasswordError) return status(422, { error: 'INVALID_CURRENT_PASSWORD' }); throw error; }
-  }, { body: t.Object({ currentPassword: t.String({ minLength: 8, maxLength: 200 }), newPassword: t.String({ minLength: 8, maxLength: 200 }) }) });
+  }, { body: t.Object({ currentPassword: t.String({ minLength: 1, maxLength: 200 }), newPassword: t.String({ minLength: MINIMUM_NEW_PASSWORD_LENGTH, maxLength: 200 }) }) });

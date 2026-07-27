@@ -16,6 +16,12 @@ const hashSessionToken = (token: string): string =>
 
 const createSessionToken = (): string => randomBytes(32).toString('base64url');
 const PASSWORD_RESET_DURATION_MS = 30 * 60 * 1000;
+// Calculé une seule fois, puis vérifié pour les comptes absents afin que leur
+// coût temporel ressemble à celui d'un mauvais mot de passe réel.
+const dummyPasswordHash = Bun.password.hash(
+  randomBytes(32).toString('base64url'),
+  { algorithm: 'argon2id' },
+);
 
 export type AuthenticatedUser = {
   id: string;
@@ -142,7 +148,11 @@ export const changePassword = async (userId: string, currentPassword: string, ne
   if (!user) throw new UserNotFoundError();
   if (!(await Bun.password.verify(currentPassword, user.passwordHash))) throw new InvalidCurrentPasswordError();
   const passwordHash = await Bun.password.hash(newPassword, { algorithm: 'argon2id' });
-  await database.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+  await database.transaction(async (transaction) => {
+    await transaction.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+    // Une session volée ne doit pas survivre à un changement volontaire de mot de passe.
+    await transaction.delete(sessions).where(eq(sessions.userId, userId));
+  });
 };
 
 export const createPasswordReset = async (
@@ -223,9 +233,14 @@ export const authenticate = async (
     .where(sql`lower(trim(${users.email})) = ${email}`)
     .limit(1);
 
-  // Une réponse unique pour l'utilisateur absent et le mauvais mot de passe
-  // empêche l'appelant de déduire quels courriels possèdent un compte.
-  if (!user || !user.accessAllowed || !(await Bun.password.verify(password, user.passwordHash))) {
+  const passwordMatches = await Bun.password.verify(
+    password,
+    user?.passwordHash ?? await dummyPasswordHash,
+  );
+
+  // Une réponse et un coût cryptographique comparables réduisent l'énumération
+  // des comptes par contenu ou par mesure de latence.
+  if (!user || !user.accessAllowed || !passwordMatches) {
     return null;
   }
 

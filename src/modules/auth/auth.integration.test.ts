@@ -188,6 +188,9 @@ describe.skipIf(!runIntegrationTests)('authentication integration', () => {
     expect(invalid.status).toBe(422);
     const changed = await app.handle(new Request('http://localhost/api/auth/change-password', { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ currentPassword: 'integration-password', newPassword: 'new-integration-password' }) }));
     expect(changed.status).toBe(200);
+    expect(changed.headers.get('set-cookie')).toContain('Max-Age=0');
+    const invalidatedSession = await app.handle(new Request('http://localhost/api/auth/session', { headers: { cookie } }));
+    expect(invalidatedSession.status).toBe(401);
     const oldLogin = await app.handle(new Request('http://localhost/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: updatedEmail, password: 'integration-password' }) }));
     const newLogin = await app.handle(new Request('http://localhost/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: updatedEmail, password: 'new-integration-password' }) }));
     expect(oldLogin.status).toBe(401); expect(newLogin.status).toBe(200);

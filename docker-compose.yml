@@ -5,10 +5,12 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      network: host
     image: ontime-frontend:latest
     container_name: ontime-frontend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
     ports:
       # Seul le proxy inversé Synology peut joindre directement le frontend.
       - "127.0.0.1:3080:80"
@@ -22,10 +24,17 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-      network: host
     image: ontime-backend:latest
     container_name: ontime-backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 512m
     env_file:
       - .env
     environment:
@@ -51,9 +60,12 @@ services:
       retries: 3
 
   database:
-    image: postgres:17-alpine
+    image: postgres:17.10-alpine
     container_name: ontime-db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
     command:
       - postgres
       - -c

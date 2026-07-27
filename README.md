@@ -36,14 +36,28 @@ Le fichier `.env` de production doit notamment contenir :
 
 ```env
 POSTGRES_DB=ontime
-POSTGRES_USER=ontime
-POSTGRES_PASSWORD=mot_de_passe_de_la_base
-DATABASE_URL=postgresql://ontime:mot_de_passe_de_la_base@ontime-db:5432/ontime
+POSTGRES_USER=administrateur_postgres
+POSTGRES_PASSWORD=mot_de_passe_administrateur
+POSTGRES_APP_USER=ontime_app
+POSTGRES_APP_PASSWORD=mot_de_passe_application
+DATABASE_URL=postgresql://ontime_app:mot_de_passe_application@ontime-db:5432/ontime
 ```
+
+Le compte `POSTGRES_USER` sert à administrer PostgreSQL. Le backend utilise un
+compte distinct, propriétaire uniquement de la base OnTime et sans privilège
+superutilisateur, dans `DATABASE_URL`. Les mots de passe réels restent
+exclusivement dans le `.env` du NAS.
 
 Le backend attend que PostgreSQL soit sain, applique les migrations Drizzle
 idempotentes, puis démarre l'API. Le frontend attend à son tour que le backend
 soit sain avant de démarrer nginx.
+
+Les conteneurs appliquent `no-new-privileges` et des limites de mémoire; le
+backend retire toutes les capacités Linux, utilise un système de
+fichiers en lecture seule et ne dispose que d'un `/tmp` temporaire. Les routes
+d'authentification sont limitées par adresse et par compte, et tout nouveau mot
+de passe doit contenir au moins 12 caractères. Un changement ou une
+réinitialisation du mot de passe invalide les sessions existantes.
 
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.
