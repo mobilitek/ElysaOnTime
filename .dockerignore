@@ -6,5 +6,8 @@
 node_modules
 dist
 coverage
+database/data
+database/data-*
+database/backups
 *.log
 .DS_Store

@@ -6,7 +6,6 @@ Socle minimal d'une API Bun/ElysiaJS avec PostgreSQL.
 
 ```bash
 cp .env.example .env
-docker compose -f compose.database.yml up -d
 bun install
 bun run db:migrate
 bun run dev:api
@@ -17,9 +16,34 @@ L'API répond sur `http://localhost:3000` et son contrôle de santé sur
 `http://localhost:3000/health`. L'interface React répond sur
 `http://localhost:5173` en développement.
 
-Le fichier `compose.database.yml` démarre PostgreSQL pour le développement
-local. Le fichier `compose.application.yml` construit et démarre l'application
-OnTime sur le NAS; il utilise la base PostgreSQL déjà installée sur celui-ci.
+En développement, `DATABASE_URL` doit pointer vers une instance PostgreSQL
+locale déjà disponible. En production sur le NAS, le fichier racine
+`docker-compose.yml` orchestre trois conteneurs spécialisés :
+
+```text
+ontime-frontend  nginx et l'interface React
+ontime-backend   Bun, ElysiaJS et les migrations Drizzle
+ontime-db        PostgreSQL 17
+```
+
+Le proxy Synology joint uniquement le frontend sur `127.0.0.1:3080`. Le
+frontend transmet `/api` au backend par `ontime-app-network`; le backend joint
+PostgreSQL par `ontime-data-network`. PostgreSQL est disponible pour un tunnel
+SSH DBeaver sur `127.0.0.1:55432`, mais aucun port du backend ou de la base
+n'est accessible directement depuis le réseau local ou Internet.
+
+Le fichier `.env` de production doit notamment contenir :
+
+```env
+POSTGRES_DB=ontime
+POSTGRES_USER=ontime
+POSTGRES_PASSWORD=mot_de_passe_de_la_base
+DATABASE_URL=postgresql://ontime:mot_de_passe_de_la_base@ontime-db:5432/ontime
+```
+
+Le backend attend que PostgreSQL soit sain, applique les migrations Drizzle
+idempotentes, puis démarre l'API. Le frontend attend à son tour que le backend
+soit sain avant de démarrer nginx.
 
 Créez le compte initial avec `bun run user:create`, puis connectez-vous depuis
 l'interface React.

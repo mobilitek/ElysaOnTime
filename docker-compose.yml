@@ -1,0 +1,90 @@
+name: ontime
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      network: host
+    image: ontime-frontend:latest
+    container_name: ontime-frontend
+    restart: unless-stopped
+    ports:
+      # Seul le proxy inversé Synology peut joindre directement le frontend.
+      - "127.0.0.1:3080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      network: host
+    image: ontime-backend:latest
+    container_name: ontime-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      COOKIE_SECURE: "true"
+      FORCE_HTTPS: "true"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+      - data-network
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const r=await fetch('http://127.0.0.1:3000/health');if(!r.ok)process.exit(1)"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  database:
+    image: postgres:17-alpine
+    container_name: ontime-db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ontime}
+      POSTGRES_USER: ${POSTGRES_USER:-ontime}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit être défini dans .env}
+    volumes:
+      - ./database/data-current:/var/lib/postgresql/data
+    ports:
+      # DBeaver peut joindre ce port uniquement par un tunnel SSH vers le NAS.
+      - "127.0.0.1:55432:5432"
+    networks:
+      - data-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ontime} -d ${POSTGRES_DB:-ontime}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  app-network:
+    name: ontime-app-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  data-network:
+    name: ontime-data-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
