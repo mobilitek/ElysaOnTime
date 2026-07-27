@@ -8,6 +8,10 @@ import {
   projects,
   workEntries,
 } from '../../db/schema';
+import {
+  normalizeDescriptionDocument,
+  type DescriptionLine,
+} from '../work-entries/description-document';
 
 export const BACKUP_FORMAT = 'ontime-backup';
 export const BACKUP_VERSION = 1;
@@ -53,6 +57,7 @@ type BackupEntry = {
   durationMinutes: number;
   clientMinutes: number;
   description: string;
+  descriptionDocument?: DescriptionLine[] | null;
   hourlyRate: string;
   amount: string;
   isBilled: boolean;
@@ -120,6 +125,18 @@ const timestamp = (value: unknown, field: string) => {
 const uniqueIds = (rows: { id: string }[], field: string) => {
   if (new Set(rows.map((row) => row.id)).size !== rows.length) {
     throw new InvalidBackupFileError(`DUPLICATE_${field.toUpperCase()}_ID`);
+  }
+};
+
+const backupDescriptionDocument = (value: unknown): DescriptionLine[] | null => {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    throw new InvalidBackupFileError('INVALID_DESCRIPTION_DOCUMENT');
+  }
+  try {
+    return normalizeDescriptionDocument(value as DescriptionLine[]);
+  } catch {
+    throw new InvalidBackupFileError('INVALID_DESCRIPTION_DOCUMENT');
   }
 };
 
@@ -210,6 +227,7 @@ export const validateBackup = (value: unknown): BackupDocument => {
         ? Number(durationMinutes)
         : integer(row.clientMinutes, 'entry_client_minutes', 0),
       description: requiredString(row.description, 'description'),
+      descriptionDocument: backupDescriptionDocument(row.descriptionDocument),
       // Les imports historiques peuvent légitimement contenir des ajustements négatifs.
       hourlyRate: requiredString(row.hourlyRate, 'entry_hourly_rate', signedDecimalPattern),
       amount: requiredString(row.amount, 'entry_amount', signedDecimalPattern),

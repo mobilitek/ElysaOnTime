@@ -2,6 +2,10 @@ import ExcelJS from 'exceljs';
 import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { database } from '../../database';
 import { clients, hourBankClosures, hourBankDays, projects, workEntries } from '../../db/schema';
+import {
+  descriptionDocumentExportText,
+  type DescriptionLine,
+} from './description-document';
 
 type ExportOptions = { from: string; to: string; clientId?: string; projectId?: string; includeDeleted: boolean; confidential: boolean; language: 'fr' | 'en' };
 type ExportUser = { id: string; firstName: string; lastName: string };
@@ -37,6 +41,11 @@ export const exportDescription = (description: string) => description
   .filter((line) => !line.trimStart().startsWith('---'))
   .join('\n');
 
+export const exportEntryDescription = (
+  description: string,
+  document: DescriptionLine[] | null,
+) => document ? descriptionDocumentExportText(document) : exportDescription(description);
+
 const bankHours = (minutes: number) => {
   const hours = minutes / 60;
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
@@ -65,7 +74,7 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   if (options.clientId) conditions.push(eq(clients.id, options.clientId));
   if (options.projectId) conditions.push(eq(projects.id, options.projectId));
   if (!options.includeDeleted) conditions.push(eq(workEntries.isDeleted, false));
-  const rows = await database.select({ id: workEntries.id, clientId: clients.id, projectId: projects.id, clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes, description: workEntries.description, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount, createdAt: workEntries.createdAt })
+  const rows = await database.select({ id: workEntries.id, clientId: clients.id, projectId: projects.id, clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate, durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes, description: workEntries.description, descriptionDocument: workEntries.descriptionDocument, hourlyRate: workEntries.hourlyRate, amount: workEntries.amount, createdAt: workEntries.createdAt })
     .from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id)).where(and(...conditions)).orderBy(desc(workEntries.workDate), desc(workEntries.createdAt));
 
   const projectIds = [...new Set(rows.map((row) => row.projectId))];
@@ -147,14 +156,18 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
     // L'export destiné au client utilise directement le temps client enregistré
     // sur chaque entrée; le temps réellement travaillé demeure interne.
     const durationMinutes = row.clientMinutes;
+    const exportedDescription = exportEntryDescription(
+      row.description,
+      row.descriptionDocument,
+    );
     const description = bank
       ? descriptionWithBankCode(
-        row.description,
+        exportedDescription,
         bank.openingMinutes,
         bank.movementMinutes,
         bank.closingMinutes,
       )
-      : exportDescription(row.description);
+      : exportedDescription;
     const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description, hours: durationMinutes / 1440 };
     if (showClient) value.client = row.clientName; if (showProject) value.project = row.projectName;
     if (!options.confidential) { value.rate = Number(row.hourlyRate); value.value = (durationMinutes / 60) * Number(row.hourlyRate); }

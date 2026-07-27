@@ -12,7 +12,7 @@ const { clients, projects, users, workEntries } = await import('../../db/schema'
 const { authenticate, createUser } = await import('../auth/service');
 const { createClient } = await import('../clients/service');
 const { createProject } = await import('../projects/service');
-const { exportDescription } = await import('./export');
+const { exportDescription, exportEntryDescription } = await import('./export');
 
 const request = (path: string, method = 'GET', body?: unknown) => createApp().handle(new Request(`http://localhost${path}`, { method, headers: { cookie, ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }));
 
@@ -45,9 +45,38 @@ describe.skipIf(!run)('work entries integration', () => {
     expect((await request('/api/work-entries/export?from=2026-07-31&to=2026-07-01&includeDeleted=false&confidential=true&language=fr')).status).toBe(422);
   });
 
+  test('stores a free-form hierarchy and derives its compatible text description', async () => {
+    const descriptionDocument = [
+      { id: 'subject', text: 'SSA-0000', depth: 0, includedInExport: true },
+      { id: 'work', text: 'Implemented validation', depth: 1, includedInExport: true },
+      { id: 'private', text: 'Internal investigation', depth: 2, includedInExport: false },
+    ];
+    const response = await request(`/api/work-entries/${entryId}`, 'PATCH', {
+      workDate: '2026-07-17',
+      durationMinutes: 90,
+      description: 'Ignored when a structured document is supplied',
+      descriptionDocument,
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { entry: object }).toMatchObject({
+      entry: {
+        description: '- SSA-0000\n  - Implemented validation\n    - Internal investigation',
+        descriptionDocument,
+      },
+    });
+  });
+
   test('removes lines beginning with three hyphens from exported descriptions', () => {
     expect(exportDescription('Visible\n--- Private note\n  --- Also private\n-- Still visible\nVisible again'))
       .toBe('Visible\n-- Still visible\nVisible again');
+  });
+
+  test('exports only structured lines explicitly included for the client', () => {
+    expect(exportEntryDescription('Legacy fallback', [
+      { id: 'one', text: 'Visible', depth: 0, includedInExport: true },
+      { id: 'two', text: 'Internal', depth: 1, includedInExport: false },
+      { id: 'three', text: 'Visible detail', depth: 2, includedInExport: true },
+    ])).toBe('- Visible\n    - Visible detail');
   });
 
   test('toggles billed and deleted state, and filters deleted entries', async () => {

@@ -2,6 +2,11 @@ import { and, asc, count, desc, eq, gte, inArray, lte, ne, sql } from 'drizzle-o
 import { database } from '../../database';
 import { clients, projects, workEntries } from '../../db/schema';
 import { synchronizeClosedHourBankWeek } from '../hour-bank/service';
+import {
+  descriptionDocumentText,
+  normalizeDescriptionDocument,
+  type DescriptionLine,
+} from './description-document';
 
 export class EntryNotFoundError extends Error {}
 export class ProjectUnavailableError extends Error {}
@@ -21,6 +26,7 @@ type EntryInput = {
   durationMinutes: number;
   clientMinutes?: number;
   description: string;
+  descriptionDocument?: DescriptionLine[] | null;
 };
 type EntryFilters = {
   from: string; to: string; clientId?: string; projectId?: string; includeDeleted: boolean;
@@ -120,6 +126,7 @@ const selection = {
   clientName: clients.name, projectName: projects.name, workDate: workEntries.workDate,
   durationMinutes: workEntries.durationMinutes, clientMinutes: workEntries.clientMinutes,
   description: workEntries.description,
+  descriptionDocument: workEntries.descriptionDocument,
   hourlyRate: workEntries.hourlyRate, amount: workEntries.amount,
   isBilled: workEntries.isBilled, isDeleted: workEntries.isDeleted,
   createdAt: workEntries.createdAt, updatedAt: workEntries.updatedAt,
@@ -157,7 +164,11 @@ export const listEntries = async (userId: string, filters: EntryFilters) => {
 };
 
 export const createEntry = async (userId: string, input: EntryInput) => {
-  validate(input); const context = await visibleProject(userId, input.projectId);
+  const descriptionDocument = normalizeDescriptionDocument(input.descriptionDocument);
+  const description = descriptionDocument
+    ? descriptionDocumentText(descriptionDocument)
+    : input.description.trim();
+  validate({ ...input, description }); const context = await visibleProject(userId, input.projectId);
   const clientMinutes = await clientTimeFor(userId, context, input);
   // Copier le taux courant sur l'entrée constitue son taux historique.
   const [entry] = await database.insert(workEntries).values({
@@ -166,7 +177,8 @@ export const createEntry = async (userId: string, input: EntryInput) => {
     workDate: input.workDate,
     durationMinutes: input.durationMinutes,
     clientMinutes,
-    description: input.description.trim(),
+    description,
+    descriptionDocument,
     hourlyRate: context.project.hourlyRate,
     amount: amountFor(clientMinutes, context.project.hourlyRate),
   }).returning();
@@ -175,7 +187,11 @@ export const createEntry = async (userId: string, input: EntryInput) => {
 };
 
 export const updateEntry = async (userId: string, id: string, input: Omit<EntryInput, 'projectId'>) => {
-  validate(input);
+  const descriptionDocument = normalizeDescriptionDocument(input.descriptionDocument);
+  const description = descriptionDocument
+    ? descriptionDocumentText(descriptionDocument)
+    : input.description.trim();
+  validate({ ...input, description });
   const [current] = await database.select({ entry: workEntries, project: projects, client: clients }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(workEntries.id, id), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
   if (!current) throw new EntryNotFoundError('Entry not found');
@@ -189,7 +205,8 @@ export const updateEntry = async (userId: string, id: string, input: Omit<EntryI
     workDate: input.workDate,
     durationMinutes: input.durationMinutes,
     clientMinutes,
-    description: input.description.trim(),
+    description,
+    descriptionDocument,
     amount: amountFor(clientMinutes, current.entry.hourlyRate),
     updatedAt: new Date(),
   }).where(eq(workEntries.id, id)).returning();
@@ -278,6 +295,7 @@ export const duplicateEntry = async (
     durationMinutes: entry.durationMinutes,
     clientMinutes,
     description: entry.description,
+    descriptionDocument: entry.descriptionDocument,
     hourlyRate: entry.hourlyRate,
     amount: amountFor(clientMinutes, entry.hourlyRate),
     isBilled: false,

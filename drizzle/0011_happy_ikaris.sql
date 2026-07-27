@@ -1,0 +1,1 @@
+ALTER TABLE "work_entries" ADD COLUMN "description_document" jsonb;

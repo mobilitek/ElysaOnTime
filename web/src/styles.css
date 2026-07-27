@@ -433,6 +433,32 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .entry-modal { width: min(760px, calc(100vw - 32px)); }
 .entry-modal form { display: grid; gap: 16px; }
 .entry-modal textarea { resize: vertical; min-height: 180px; }
+.entry-description-field { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.outline-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #f7fafc; color: var(--ink); font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: normal; }
+.outline-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); padding: 11px 12px; background: white; }
+.outline-editor-heading > div { display: grid; gap: 2px; }
+.outline-editor-heading strong { font-size: 13px; }
+.outline-editor-heading small { color: var(--ink-soft); font-size: 11px; font-weight: 500; }
+.outline-heading-actions { display: flex !important; gap: 6px !important; }
+.outline-add, .outline-copy { border: 1px solid #80b9b5; border-radius: 8px; padding: 7px 10px; background: #edf8f7; color: #08746f; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.outline-copy { border-color: var(--line); background: white; color: var(--ink-soft); }
+.outline-legacy-note { margin: 0; border-bottom: 1px solid #ead9a9; padding: 9px 12px; background: #fff9e9; color: #74530b; font-size: 12px; line-height: 1.4; }
+.outline-lines { display: grid; gap: 5px; max-height: 390px; overflow: auto; padding: 10px; }
+.outline-line { display: grid; grid-template-columns: 88px 18px minmax(180px, 1fr) auto; align-items: center; gap: 5px; margin-left: min(calc(var(--outline-depth) * 24px), 60%); transition: margin-left 120ms ease, opacity 120ms ease; }
+.outline-line-internal { opacity: .7; }
+.outline-line-internal input { text-decoration: line-through; }
+.outline-export-toggle, .outline-line-actions button { min-width: 28px; height: 30px; border: 1px solid var(--line); border-radius: 7px; padding: 0 6px; background: white; color: var(--ink-soft); cursor: pointer; }
+.outline-export-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.outline-export-toggle[aria-pressed="true"] { border-color: #80b9b5; color: #08746f; background: #edf8f7; }
+.outline-export-toggle[aria-pressed="false"] { border-color: #d5a4a0; color: #9b2f28; background: #fff3f2; }
+.outline-branch { color: #9aabba; font-family: monospace; }
+.outline-line input { width: 100%; min-width: 0; height: 36px; padding: 7px 9px !important; font-size: 13px; }
+.outline-line-actions { display: flex; gap: 3px; opacity: .25; transition: opacity 120ms ease; }
+.outline-line:hover .outline-line-actions, .outline-line:focus-within .outline-line-actions { opacity: 1; }
+.outline-line-actions button:disabled { opacity: .3; cursor: default; }
+.outline-export-preview { border-top: 1px solid var(--line); background: white; }
+.outline-export-preview summary { padding: 9px 12px; color: var(--teal); font-size: 12px; font-weight: 800; cursor: pointer; }
+.outline-export-preview pre { max-height: 180px; overflow: auto; margin: 0; border-top: 1px solid var(--line); padding: 12px; background: #17243a; color: white; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 .entry-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .entry-time-grid label { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .entry-bank-preview { display: flex; align-items: baseline; gap: 12px; margin-top: -4px; border-radius: 10px; padding: 10px 12px; background: #f2f8f8; }
@@ -691,6 +717,12 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .entry-assignment-grid,
   .entry-time-grid { grid-template-columns: 1fr; }
   .entry-modal textarea { min-height: 126px; }
+  .outline-line { grid-template-columns: 82px 14px minmax(120px, 1fr); margin-left: min(calc(var(--outline-depth) * 18px), 42%); }
+  .outline-editor-heading { align-items: flex-start; flex-direction: column; }
+  .outline-heading-actions { width: 100%; }
+  .outline-heading-actions button { flex: 1; }
+  .outline-line-actions { grid-column: 3; opacity: 1; }
+  .outline-lines { max-height: none; }
   .entry-bank-preview { align-items: flex-start; flex-wrap: wrap; }
   .entry-bank-preview small { width: 100%; margin-left: 0; }
   .entry-modal .modal-actions { position: sticky; bottom: calc(-28px - env(safe-area-inset-bottom)); z-index: 2; margin: 8px -18px calc(-28px - env(safe-area-inset-bottom)); border-top: 1px solid var(--line); padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 24px rgba(27, 55, 84, .08); }

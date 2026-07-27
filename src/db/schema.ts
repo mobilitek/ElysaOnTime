@@ -5,6 +5,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -199,6 +200,14 @@ export const workEntries = pgTable(
     // lorsque la banque d'heures du projet est activée.
     clientMinutes: integer('client_minutes').notNull().default(0),
     description: text('description').notNull(),
+    // Document hiérarchique facultatif. Les entrées historiques restent
+    // lisibles depuis `description` tant qu'elles n'ont pas été converties.
+    descriptionDocument: jsonb('description_document').$type<Array<{
+      id: string;
+      text: string;
+      depth: number;
+      includedInExport: boolean;
+    }> | null>(),
     hourlyRate: numeric('hourly_rate', { precision: 12, scale: 2 }).notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
     // Le taux et le montant sont historisés sur l'entrée. Une modification

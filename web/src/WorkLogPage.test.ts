@@ -6,12 +6,68 @@ import {
   possibleWorkingMinutes,
   shiftPeriod,
 } from './WorkLogPage';
+import {
+  descriptionDocumentExportText,
+  descriptionDocumentText,
+  parseLegacyDescription,
+  replaceLineWithPastedText,
+} from './descriptionDocument';
 
 describe('work log description preview', () => {
   test('keeps only the first line in the table preview', () => {
     expect(firstDescriptionLine('Résumé du travail\n- Première tâche\n- Deuxième tâche')).toBe('Résumé du travail');
     expect(firstDescriptionLine('Une seule ligne')).toBe('Une seule ligne');
     expect(firstDescriptionLine('Windows\r\nDeuxième ligne')).toBe('Windows');
+  });
+});
+
+describe('structured work log descriptions', () => {
+  test('converts legacy hyphen indentation and preserves internal export rules', () => {
+    const lines = parseLegacyDescription([
+      '-SSA-0000',
+      '-- Travail effectué',
+      '--- Note interne',
+      '---- Détail interne',
+      '-SSA-0001',
+    ].join('\n'));
+
+    expect(lines.map(({ text, depth, includedInExport }) => ({
+      text, depth, includedInExport,
+    }))).toEqual([
+      { text: 'SSA-0000', depth: 0, includedInExport: true },
+      { text: 'Travail effectué', depth: 1, includedInExport: true },
+      { text: 'Note interne', depth: 2, includedInExport: false },
+      { text: 'Détail interne', depth: 3, includedInExport: false },
+      { text: 'SSA-0001', depth: 0, includedInExport: true },
+    ]);
+    expect(descriptionDocumentText(lines)).toContain('    - Note interne');
+    expect(descriptionDocumentExportText(lines)).not.toContain('Note interne');
+  });
+
+  test('keeps arbitrary plain text as freely organized top-level lines', () => {
+    const lines = parseLegacyDescription('Réunion\nDéveloppement\n  Sous-sujet');
+    expect(lines.map(({ text, depth }) => ({ text, depth }))).toEqual([
+      { text: 'Réunion', depth: 0 },
+      { text: 'Développement', depth: 0 },
+      { text: 'Sous-sujet', depth: 1 },
+    ]);
+  });
+
+  test('turns a multi-line paste into outline rows relative to the target depth', () => {
+    const existing = parseLegacyDescription('-- Élément existant');
+    const result = replaceLineWithPastedText(
+      existing,
+      0,
+      '- Meeting\n-- Décision\n--- Note privée\n- Tâches',
+    );
+    expect(result.map(({ text, depth, includedInExport }) => ({
+      text, depth, includedInExport,
+    }))).toEqual([
+      { text: 'Meeting', depth: 1, includedInExport: true },
+      { text: 'Décision', depth: 2, includedInExport: true },
+      { text: 'Note privée', depth: 3, includedInExport: false },
+      { text: 'Tâches', depth: 1, includedInExport: true },
+    ]);
   });
 });
 

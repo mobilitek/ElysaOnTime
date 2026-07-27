@@ -7,11 +7,18 @@ import { exportWorkEntries } from './export';
 
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
 const date = t.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' });
+const descriptionLine = t.Object({
+  id: t.String({ minLength: 1, maxLength: 100 }),
+  text: t.String({ minLength: 1, maxLength: 10_000 }),
+  depth: t.Integer({ minimum: 0, maximum: 100 }),
+  includedInExport: t.Boolean(),
+});
 const entryBody = t.Object({
   workDate: date,
   durationMinutes: t.Integer({ minimum: 0 }),
   clientMinutes: t.Optional(t.Integer({ minimum: 0 })),
   description: t.String({ minLength: 1 }),
+  descriptionDocument: t.Optional(t.Nullable(t.Array(descriptionLine, { minItems: 1, maxItems: 500 }))),
 });
 
 /** Traduit les erreurs métier connues en réponses HTTP stables pour le frontend. */
