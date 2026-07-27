@@ -536,6 +536,11 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .admin-row-actions { display: flex; gap: 7px; }
 .admin-user-modal textarea { min-height: 82px; resize: vertical; }
 .subscription-profile-card { margin-top: 24px; }
+.backup-profile-card { margin-top: 24px; }
+.backup-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.backup-profile-heading h2 { margin: 3px 0 8px; }
+.backup-profile-heading p:last-child { margin: 0; color: var(--ink-soft); }
+.backup-profile-actions { display: flex; gap: 10px; flex: 0 0 auto; }
 .subscription-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .subscription-profile-heading h2 { margin: 3px 0 0; }
 .subscription-profile-heading .secondary-button { display: grid; place-items: center; padding: 0 18px; text-decoration: none; }
@@ -634,6 +639,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .admin-toolbar input { max-width: none; }
   .form-two-columns { grid-template-columns: 1fr; }
   .subscription-profile-heading { align-items: stretch; flex-direction: column; }
+  .backup-profile-heading { align-items: stretch; flex-direction: column; }
+  .backup-profile-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .subscription-current { grid-template-columns: 1fr; }
   .manual-grid { grid-template-columns: 1fr; }
   .floating-help-button { right: 18px; bottom: 18px; }
