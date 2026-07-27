@@ -77,8 +77,8 @@ services:
     volumes:
       - ./database/data-current:/var/lib/postgresql/data
     ports:
-      # DBeaver peut joindre ce port uniquement par un tunnel SSH vers le NAS.
-      - "127.0.0.1:55432:5432"
+      # Accès PostgreSQL direct depuis le réseau local, sans tunnel SSH.
+      - "192.168.2.139:5432:5432"
     networks:
       - data-network
     healthcheck:

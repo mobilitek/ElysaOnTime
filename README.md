@@ -28,25 +28,22 @@ ontime-db        PostgreSQL 17
 
 Le proxy Synology joint uniquement le frontend sur `127.0.0.1:3080`. Le
 frontend transmet `/api` au backend par `ontime-app-network`; le backend joint
-PostgreSQL par `ontime-data-network`. PostgreSQL est disponible pour un tunnel
-SSH DBeaver sur `127.0.0.1:55432`, mais aucun port du backend ou de la base
-n'est accessible directement depuis le réseau local ou Internet.
+PostgreSQL par `ontime-data-network`. PostgreSQL est également publié sur
+`192.168.2.139:5432` pour un accès direct depuis le réseau local. Le routeur ne
+doit pas rediriger ce port depuis Internet.
 
 Le fichier `.env` de production doit notamment contenir :
 
 ```env
 POSTGRES_DB=ontime
 POSTGRES_USER=administrateur_postgres
-POSTGRES_PASSWORD=mot_de_passe_administrateur
-POSTGRES_APP_USER=ontime_app
-POSTGRES_APP_PASSWORD=mot_de_passe_application
-DATABASE_URL=postgresql://ontime_app:mot_de_passe_application@ontime-db:5432/ontime
+POSTGRES_PASSWORD=mot_de_passe_postgres
+DATABASE_URL=postgresql://administrateur_postgres:mot_de_passe_postgres@ontime-db:5432/ontime
 ```
 
-Le compte `POSTGRES_USER` sert à administrer PostgreSQL. Le backend utilise un
-compte distinct, propriétaire uniquement de la base OnTime et sans privilège
-superutilisateur, dans `DATABASE_URL`. Les mots de passe réels restent
-exclusivement dans le `.env` du NAS.
+Le même compte `POSTGRES_USER` sert à administrer PostgreSQL, exécuter les
+migrations et connecter le backend aux bases `ontime` et `ontime_dev`. Les mots
+de passe réels restent exclusivement dans les fichiers `.env`.
 
 Le backend attend que PostgreSQL soit sain, applique les migrations Drizzle
 idempotentes, puis démarre l'API. Le frontend attend à son tour que le backend
