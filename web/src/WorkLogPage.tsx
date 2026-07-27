@@ -26,6 +26,15 @@ type HourBankWeek = {
   project: { maxDailyBillableMinutes: number; maxWeeklyBillableMinutes: number };
   days: Array<{ workDate: string; actualMinutes: number; billedMinutes: number; movementMinutes: number }>;
 };
+export const hourBankBalanceThroughDate = (
+  week: {
+    openingBalanceMinutes: number;
+    days: Array<Pick<HourBankWeek['days'][number], 'workDate' | 'movementMinutes'>>;
+  },
+  throughDate: string,
+) => week.openingBalanceMinutes + week.days
+  .filter((day) => day.workDate <= throughDate)
+  .reduce((sum, day) => sum + day.movementMinutes, 0);
 
 const pad = (value: number) => String(value).padStart(2, '0');
 const iso = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -168,6 +177,10 @@ export function WorkLogPage(props: Props) {
     && entryProject.hourBankStartDate
     && workDate >= entryProject.hourBankStartDate,
   );
+  const bankBalance = bankWeek ? hourBankBalanceThroughDate(bankWeek, to) : null;
+  const bankPeriodMovement = bankWeek && bankBalance !== null
+    ? bankBalance - bankWeek.openingBalanceMinutes
+    : 0;
   const subscriptionDaysRemaining = useMemo(() => {
     if (user.isAdmin || !user.subscriptionEndsOn || user.accessLevel !== 'full') return null;
     const expiry = new Date(`${user.subscriptionEndsOn}T12:00:00`);
@@ -255,10 +268,17 @@ export function WorkLogPage(props: Props) {
   }, [entryClientId, formOpen]);
   useEffect(() => {
     const project = projects.find((item) => item.id === projectId);
-    if (!project?.hourBankEnabled || preset !== 'week') {
+    if (
+      !project?.hourBankEnabled
+      || !project.hourBankStartDate
+      || from > to
+      || to < project.hourBankStartDate
+    ) {
       setBankWeek(null); setBankError(''); return;
     }
-    const weekStart = period('week', new Date(`${from}T12:00:00`)).from;
+    // Pour une période mensuelle ou personnalisée qui chevauche la banque,
+    // montrer la semaine contenant la fin de la période sélectionnée.
+    const weekStart = period('week', new Date(`${to}T12:00:00`)).from;
     setBankBusy(true); setBankError('');
     void fetch(`/api/hour-bank/week?projectId=${projectId}&weekStart=${weekStart}`, { credentials: 'include' })
       .then(async (response) => {
@@ -271,7 +291,7 @@ export function WorkLogPage(props: Props) {
       })
       .catch(() => { setBankWeek(null); setBankError(language === 'fr' ? 'La banque d’heures ne s’applique pas à cette semaine.' : 'The hour bank does not apply to this week.'); })
       .finally(() => setBankBusy(false));
-  }, [projectId, projects, from, preset, reload]);
+  }, [projectId, projects, from, to, reload]);
   useEffect(() => {
     // Toute modification d'un filtre, tri ou page recharge les entrées et remet
     // la sélection multiple à zéro.
@@ -285,7 +305,19 @@ export function WorkLogPage(props: Props) {
   const choosePreset = (value: Preset) => { setPreset(value); saveCookie('ontime_period_preset', value); setPage(1); if (value !== 'custom') { const range = period(value, today); setFrom(range.from); setTo(range.to); } else { saveCookie('ontime_period_from', from); saveCookie('ontime_period_to', to); } };
   const movePeriod = (direction: -1 | 1) => { if (preset === 'custom') return; const range = shiftPeriod(preset, from, direction); setFrom(range.from); setTo(range.to); setPage(1); };
   const sort = (value: Sort) => { if (sortBy === value) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc'); else { setSortBy(value); setSortDirection('asc'); } };
-  const openCreate = () => { setEditing(null); setEntryClientId(clientId); setEntryProjectId(projectId); setWorkDate(iso(today)); setTime('08:00'); setClientTime('08:00'); setDescription(''); setError(''); setFormOpen(true); };
+  const openCreate = () => {
+    const preferredClient = clientId || cookieValue('ontime_entry_client');
+    const preferredProject = projectId || cookieValue('ontime_entry_project');
+    setEditing(null);
+    setEntryClientId(clients.some((item) => item.id === preferredClient) ? preferredClient : '');
+    setEntryProjectId(preferredProject);
+    setWorkDate(iso(today));
+    setTime('08:00');
+    setClientTime('08:00');
+    setDescription('');
+    setError('');
+    setFormOpen(true);
+  };
   const openEdit = (entry: Entry) => { if (entry.isBilled && !confirm(text.warning)) return; setEditing(entry); setEntryClientId(entry.clientId); setEntryProjectId(entry.projectId); setWorkDate(entry.workDate); setTime(formatDuration(entry.durationMinutes)); setClientTime(formatDuration(entry.clientMinutes)); setDescription(entry.description); setError(''); setFormOpen(true); };
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -327,10 +359,53 @@ export function WorkLogPage(props: Props) {
       setError(payload?.error === 'CLIENT_TIME_LIMIT' ? text.invalidBank : text.error);
       return;
     }
+    saveCookie('ontime_entry_client', entryClientId);
+    saveCookie('ontime_entry_project', entryProjectId);
     setFormOpen(false);
     setReload((current) => current + 1);
   };
   const action = async (path: string, body: unknown) => { if (actionBusy) return; setActionBusy(true); try { const response = await fetch(path, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (!response.ok) setError(text.error); else setReload((current) => current + 1); } finally { setActionBusy(false); } };
+  const duplicate = async (entry: Entry, nextWorkday: boolean) => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    setError('');
+    try {
+      const send = (confirmExisting: boolean) => fetch(
+        `/api/work-entries/${entry.id}/duplicate`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ nextWorkday, confirmExisting }),
+        },
+      );
+      let response = await send(false);
+      if (response.status === 409) {
+        const payload = await response.json() as {
+          error?: string;
+          targetDate?: string;
+        };
+        if (payload.error !== 'DUPLICATE_TARGET_OCCUPIED' || !payload.targetDate) {
+          setError(text.error);
+          return;
+        }
+        const confirmed = confirm(language === 'fr'
+          ? `Il existe déjà au moins une entrée le ${formatDate(payload.targetDate)}.\n\nVoulez-vous tout de même créer la copie?`
+          : `At least one entry already exists on ${formatDate(payload.targetDate)}.\n\nDo you still want to create the copy?`);
+        if (!confirmed) return;
+        response = await send(true);
+      }
+      if (!response.ok) {
+        setError(text.error);
+        return;
+      }
+      setReload((current) => current + 1);
+    } catch {
+      setError(text.error);
+    } finally {
+      setActionBusy(false);
+    }
+  };
   const toggleDeletedEntry = (entry: Entry) => {
     if (!entry.isDeleted) {
       const message = `${entry.isBilled ? `${text.warning}\n\n` : ''}${text.confirmDelete}`;
@@ -485,13 +560,45 @@ export function WorkLogPage(props: Props) {
       {!projectId ? <p className="journal-hint">{text.selectProject}</p> : null}{notice ? <p className="success-message page-notice">{notice}</p> : null}{bankWeek && !bankWeek.isConsistent ? <p className="warning-message page-notice">{text.bankInconsistent}</p> : null}{filterError ? <p className="error-message page-error">{filterError}</p> : null}{error ? <p className="error-message page-error">{error}</p> : null}
       {bankBusy && !bankWeek ? <p className="journal-loading"><span className="loading-ring" />{text.hourBank}</p> : null}
       {bankError ? <p className="error-message page-error">{bankError}</p> : null}
-      <div className="journal-summary"><div><span>{text.items}</span><strong>{summary.itemCount}</strong></div><div><span>{text.actual}</span><strong>{formatDuration(Number(summary.totalMinutes))} <small>/ {formatDuration(possibleMinutes)}</small></strong></div>{selectedProject?.hourBankEnabled ? <div><span>{text.clientTime}</span><strong>{formatDuration(Number(summary.totalClientMinutes))}</strong></div> : null}{bankWeek ? <button className="bank-summary-card" onClick={() => setBankModalOpen(true)}><span>{text.hourBank}</span><strong>{formatDuration(bankWeek.closingBalanceMinutes)} <small className={bankWeek.closingBalanceMinutes - bankWeek.openingBalanceMinutes < 0 ? 'negative' : 'positive'}>{bankWeek.closingBalanceMinutes - bankWeek.openingBalanceMinutes > 0 ? '+' : ''}{formatDuration(bankWeek.closingBalanceMinutes - bankWeek.openingBalanceMinutes)}</small></strong><em>{text.reviewWeek}</em></button> : null}{!confidential ? <div><span>{text.value}</span><strong>${Number(summary.totalAmount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}{possibleAmount !== null ? <small> / ${possibleAmount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small> : null}</strong></div> : null}<label><input type="checkbox" checked={includeDeleted} onChange={(event) => { setIncludeDeleted(event.target.checked); setPage(1); }} />{text.deleted}</label></div>
+      <div className="journal-summary"><div><span>{text.items}</span><strong>{summary.itemCount}</strong></div><div><span>{text.actual}</span><strong>{formatDuration(Number(summary.totalMinutes))} <small>/ {formatDuration(possibleMinutes)}</small></strong></div>{selectedProject?.hourBankEnabled ? <div><span>{text.clientTime}</span><strong>{formatDuration(Number(summary.totalClientMinutes))}</strong></div> : null}{bankWeek && bankBalance !== null ? <button className="bank-summary-card" onClick={() => setBankModalOpen(true)}><span>{text.hourBank}</span><strong>{formatDuration(bankBalance)} <small className={bankPeriodMovement < 0 ? 'negative' : 'positive'}>{bankPeriodMovement > 0 ? '+' : ''}{formatDuration(bankPeriodMovement)}</small></strong><em>{text.reviewWeek}</em></button> : null}{!confidential ? <div><span>{text.value}</span><strong>${Number(summary.totalAmount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}{possibleAmount !== null ? <small> / ${possibleAmount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small> : null}</strong></div> : null}<label><input type="checkbox" checked={includeDeleted} onChange={(event) => { setIncludeDeleted(event.target.checked); setPage(1); }} />{text.deleted}</label></div>
       <div className="journal-actions"><button disabled={!selected.length || actionBusy} onClick={() => void action('/api/work-entries/toggle-billed', { ids: selected })}>{text.toggleBilled}</button></div>
       {loadingEntries ? <p className="journal-loading"><span className="loading-ring" />{language === 'fr' ? 'Chargement…' : 'Loading…'}</p> : null}
-      <div className="journal-table-wrap"><table className="journal-table"><thead><tr><th><input type="checkbox" checked={entries.length > 0 && selected.length === entries.length} onChange={(event) => setSelected(event.target.checked ? entries.map((item) => item.id) : [])} /></th>{columns === 'both' ? <th onClick={() => sort('client')}>{text.client}</th> : null}{columns !== 'none' ? <th onClick={() => sort('project')}>{text.project}</th> : null}<th onClick={() => sort('workDate')}>{text.date}</th><th>{text.description}</th><th onClick={() => sort('duration')}>{selectedProject?.hourBankEnabled ? text.actual : text.hours}</th>{selectedProject?.hourBankEnabled ? <><th>{text.clientTime}</th><th>{text.bankMovement}</th></> : null}{!confidential ? <><th onClick={() => sort('hourlyRate')}>{text.rate}</th><th onClick={() => sort('amount')}>{text.value}</th></> : null}<th onClick={() => sort('isBilled')}>{text.billed}</th><th /></tr></thead><tbody>{entries.map((entry) => { const movement = entry.durationMinutes - entry.clientMinutes; return <tr key={entry.id} className={entry.isDeleted ? 'deleted-entry' : ''}><td><input type="checkbox" checked={selected.includes(entry.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, entry.id] : current.filter((id) => id !== entry.id))} /></td>{columns === 'both' ? <td>{entry.clientName}</td> : null}{columns !== 'none' ? <td>{entry.projectName}</td> : null}<td>{formatDate(entry.workDate)}</td><td className="description-cell"><DescriptionPreview description={entry.description} /></td><td>{formatDuration(entry.durationMinutes)}</td>{selectedProject?.hourBankEnabled ? <><td>{formatDuration(entry.clientMinutes)}</td><td className={movement < 0 ? 'negative' : movement > 0 ? 'positive' : ''}>{movement > 0 ? '+' : ''}{formatDuration(movement)}</td></> : null}{!confidential ? <><td>${Number(entry.hourlyRate).toFixed(2)}</td><td>${Number(entry.amount).toFixed(2)}</td></> : null}<td><input type="checkbox" checked={entry.isBilled} disabled={actionBusy} title={text.toggleBilled} aria-label={`${text.toggleBilled}: ${formatDate(entry.workDate)}`} onChange={() => void action('/api/work-entries/toggle-billed', { ids: [entry.id] })} /></td><td className="row-actions"><button title={text.edit} onClick={() => openEdit(entry)}>✎</button><button title={text.duplicate} onClick={() => void action(`/api/work-entries/${entry.id}/duplicate`, { nextWorkday: false })}>⧉</button><button title={text.next} onClick={() => void action(`/api/work-entries/${entry.id}/duplicate`, { nextWorkday: true })}>⧉+1</button><button className={entry.isDeleted ? 'restore-entry-action' : 'delete-entry-action'} title={entry.isDeleted ? text.restoreEntry : text.deleteEntry} aria-label={`${entry.isDeleted ? text.restoreEntry : text.deleteEntry}: ${formatDate(entry.workDate)}`} disabled={actionBusy} onClick={() => toggleDeletedEntry(entry)}>{entry.isDeleted ? '↺' : '−'}</button></td></tr>; })}{!entries.length ? <tr><td colSpan={14} className="empty-table">{text.empty}</td></tr> : null}</tbody></table></div>
+      <div className="mobile-entry-list" aria-label={language === 'fr' ? 'Entrées du journal' : 'Work log entries'}>
+        {entries.map((entry) => {
+          const movement = entry.durationMinutes - entry.clientMinutes;
+          return <article className={`mobile-entry-card ${entry.isDeleted ? 'deleted-entry' : ''}`} key={entry.id}>
+            <div className="mobile-entry-heading">
+              <div><strong>{entry.clientName}</strong><span>{entry.projectName}</span></div>
+              <time dateTime={entry.workDate}>{formatDate(entry.workDate)}</time>
+            </div>
+            <button type="button" className="mobile-entry-description" onClick={() => openEdit(entry)}>{firstDescriptionLine(entry.description)}</button>
+            <div className="mobile-entry-metrics">
+              <span><small>{text.actual}</small><strong>{formatDuration(entry.durationMinutes)}</strong></span>
+              {entry.clientMinutes !== entry.durationMinutes ? <span><small>{text.clientTime}</small><strong>{formatDuration(entry.clientMinutes)}</strong></span> : null}
+              {movement !== 0 ? <span><small>{text.bankMovement}</small><strong className={movement < 0 ? 'negative' : 'positive'}>{movement > 0 ? '+' : ''}{formatDuration(movement)}</strong></span> : null}
+            </div>
+            <div className="mobile-entry-footer">
+              <label><input type="checkbox" checked={entry.isBilled} disabled={actionBusy} onChange={() => void action('/api/work-entries/toggle-billed', { ids: [entry.id] })} />{text.billed}</label>
+              <div className="mobile-entry-actions">
+                <button type="button" onClick={() => openEdit(entry)}>{text.edit}</button>
+                <button type="button" onClick={() => void duplicate(entry, false)}>{text.duplicate}</button>
+                <button type="button" onClick={() => void duplicate(entry, true)}>{language === 'fr' ? 'Jour suivant' : 'Next day'}</button>
+                <button type="button" className={entry.isDeleted ? 'restore-entry-action' : 'delete-entry-action'} title={entry.isDeleted ? text.restoreEntry : text.deleteEntry} onClick={() => toggleDeletedEntry(entry)}>{entry.isDeleted ? (language === 'fr' ? 'Restaurer' : 'Restore') : (language === 'fr' ? 'Supprimer' : 'Delete')}</button>
+              </div>
+            </div>
+          </article>;
+        })}
+        {!entries.length && !loadingEntries ? <p className="mobile-empty-state">{text.empty}</p> : null}
+      </div>
+      <div className="journal-table-wrap"><table className="journal-table"><thead><tr><th><input type="checkbox" checked={entries.length > 0 && selected.length === entries.length} onChange={(event) => setSelected(event.target.checked ? entries.map((item) => item.id) : [])} /></th>{columns === 'both' ? <th onClick={() => sort('client')}>{text.client}</th> : null}{columns !== 'none' ? <th onClick={() => sort('project')}>{text.project}</th> : null}<th onClick={() => sort('workDate')}>{text.date}</th><th>{text.description}</th><th onClick={() => sort('duration')}>{selectedProject?.hourBankEnabled ? text.actual : text.hours}</th>{selectedProject?.hourBankEnabled ? <><th>{text.clientTime}</th><th>{text.bankMovement}</th></> : null}{!confidential ? <><th onClick={() => sort('hourlyRate')}>{text.rate}</th><th onClick={() => sort('amount')}>{text.value}</th></> : null}<th onClick={() => sort('isBilled')}>{text.billed}</th><th /></tr></thead><tbody>{entries.map((entry) => { const movement = entry.durationMinutes - entry.clientMinutes; return <tr key={entry.id} className={entry.isDeleted ? 'deleted-entry' : ''}><td><input type="checkbox" checked={selected.includes(entry.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, entry.id] : current.filter((id) => id !== entry.id))} /></td>{columns === 'both' ? <td>{entry.clientName}</td> : null}{columns !== 'none' ? <td>{entry.projectName}</td> : null}<td>{formatDate(entry.workDate)}</td><td className="description-cell"><DescriptionPreview description={entry.description} /></td><td>{formatDuration(entry.durationMinutes)}</td>{selectedProject?.hourBankEnabled ? <><td>{formatDuration(entry.clientMinutes)}</td><td className={movement < 0 ? 'negative' : movement > 0 ? 'positive' : ''}>{movement > 0 ? '+' : ''}{formatDuration(movement)}</td></> : null}{!confidential ? <><td>${Number(entry.hourlyRate).toFixed(2)}</td><td>${Number(entry.amount).toFixed(2)}</td></> : null}<td><input type="checkbox" checked={entry.isBilled} disabled={actionBusy} title={text.toggleBilled} aria-label={`${text.toggleBilled}: ${formatDate(entry.workDate)}`} onChange={() => void action('/api/work-entries/toggle-billed', { ids: [entry.id] })} /></td><td className="row-actions"><button title={text.edit} onClick={() => openEdit(entry)}>✎</button><button title={text.duplicate} onClick={() => void duplicate(entry, false)}>⧉</button><button title={text.next} onClick={() => void duplicate(entry, true)}>⧉+1</button><button className={entry.isDeleted ? 'restore-entry-action' : 'delete-entry-action'} title={entry.isDeleted ? text.restoreEntry : text.deleteEntry} aria-label={`${entry.isDeleted ? text.restoreEntry : text.deleteEntry}: ${formatDate(entry.workDate)}`} disabled={actionBusy} onClick={() => toggleDeletedEntry(entry)}>{entry.isDeleted ? '↺' : '−'}</button></td></tr>; })}{!entries.length ? <tr><td colSpan={14} className="empty-table">{text.empty}</td></tr> : null}</tbody></table></div>
       <div className="journal-pagination"><label>{text.items}<select value={pageSize} onChange={(event) => { const value = Number(event.target.value); setPageSize(value); setPage(1); document.cookie = `ontime_page_size=${value}; Max-Age=31536000; Path=/; SameSite=Lax`; }}>{[10, 25, 50, 100].map((value) => <option key={value}>{value}</option>)}</select></label><button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>{text.previous}</button><span>{text.page} {page} / {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)}>{text.following}</button></div>
     </section>
-    {formOpen ? <div className="modal-backdrop"><section className="client-modal entry-modal"><div className="modal-heading"><h2>{editing ? text.editEntry : text.newEntry}</h2><button className="close-button" onClick={() => setFormOpen(false)}>×</button></div><form onSubmit={save}><div className="entry-assignment-grid"><label>{text.client}<select value={entryClientId} disabled={Boolean(editing)} required onChange={(event) => { setEntryClientId(event.target.value); setEntryProjectId(''); }}><option value="">{text.chooseClient}</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>{text.project}<select value={entryProjectId} disabled={Boolean(editing) || !entryClientId} required onChange={(event) => setEntryProjectId(event.target.value)}><option value="">{text.chooseProject}</option>{entryProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div><label>{text.date}<input type="date" value={workDate} onChange={(event) => setWorkDate(event.target.value)} required /></label><div className={entryUsesBank ? 'entry-time-grid' : ''}><label>{text.duration}<input value={time} onChange={(event) => { const value = event.target.value; setTime(value); if (!editing) setClientTime(value); }} placeholder="08:00" required /></label>{entryUsesBank ? <label>{text.clientDuration}<input value={clientTime} onChange={(event) => setClientTime(event.target.value)} placeholder="08:00" required /></label> : null}</div>{entryUsesBank ? <div className="entry-bank-preview"><span>{text.bankMovement}</span><strong className={(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) < 0 ? 'negative' : 'positive'}>{(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) > 0 ? '+' : ''}{formatDuration((parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0))}</strong><small>{formatDuration(entryProject?.maxDailyBillableMinutes ?? 480)} {language === 'fr' ? 'facturables au maximum par jour pour ce projet' : 'maximum billable per day for this project'}</small></div> : null}<label>{text.description}<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={10} required /></label>{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setFormOpen(false)}>{text.back}</button><button className="primary-button">{text.save}</button></div></form></section></div> : null}
+    <nav className="mobile-primary-nav" aria-label={language === 'fr' ? 'Navigation mobile' : 'Mobile navigation'}>
+      <button type="button" className="active" onClick={() => { choosePreset('day'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><span aria-hidden="true">☷</span>{text.journal}</button>
+      <button type="button" className="mobile-add-entry" onClick={openCreate}><span aria-hidden="true">＋</span>{language === 'fr' ? 'Ajouter' : 'Add'}</button>
+      <button type="button" onClick={onNavigateProfile}><span aria-hidden="true">○</span>{language === 'fr' ? 'Profil' : 'Profile'}</button>
+    </nav>
+    {formOpen ? <div className="modal-backdrop"><section className="client-modal entry-modal"><div className="modal-heading"><h2>{editing ? text.editEntry : text.newEntry}</h2><button className="close-button" onClick={() => setFormOpen(false)}>×</button></div><form onSubmit={save}><div className="entry-assignment-grid"><label>{text.client}<select value={entryClientId} disabled={Boolean(editing)} required onChange={(event) => { const value = event.target.value; setEntryClientId(value); setEntryProjectId(''); if (!editing) { saveCookie('ontime_entry_client', value); saveCookie('ontime_entry_project', ''); } }}><option value="">{text.chooseClient}</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>{text.project}<select value={entryProjectId} disabled={Boolean(editing) || !entryClientId} required onChange={(event) => { setEntryProjectId(event.target.value); if (!editing) saveCookie('ontime_entry_project', event.target.value); }}><option value="">{text.chooseProject}</option>{entryProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div><label>{text.date}<input type="date" value={workDate} onChange={(event) => setWorkDate(event.target.value)} required /></label><div className={entryUsesBank ? 'entry-time-grid' : ''}><label>{text.duration}<input value={time} onChange={(event) => { const value = event.target.value; setTime(value); if (!editing) setClientTime(value); }} placeholder="08:00" required /></label>{entryUsesBank ? <label>{text.clientDuration}<input value={clientTime} onChange={(event) => setClientTime(event.target.value)} placeholder="08:00" required /></label> : null}</div>{entryUsesBank ? <div className="entry-bank-preview"><span>{text.bankMovement}</span><strong className={(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) < 0 ? 'negative' : 'positive'}>{(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) > 0 ? '+' : ''}{formatDuration((parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0))}</strong><small>{formatDuration(entryProject?.maxDailyBillableMinutes ?? 480)} {language === 'fr' ? 'facturables au maximum par jour pour ce projet' : 'maximum billable per day for this project'}</small></div> : null}<label>{text.description}<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={10} required /></label>{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setFormOpen(false)}>{text.back}</button><button className="primary-button">{text.save}</button></div></form></section></div> : null}
     {bankModalOpen && bankWeek ? <div className="modal-backdrop"><section className="client-modal hour-bank-modal"><div className="modal-heading"><div><p className="eyebrow">{text.hourBank}</p><h2>{formatDate(bankWeek.weekStart)} – {formatDate(bankWeek.weekEnd)}</h2></div><button className="close-button" onClick={() => setBankModalOpen(false)}>×</button></div><div className="hour-bank-balances"><span>{text.openingBalance}<strong>{formatDuration(bankWeek.openingBalanceMinutes)}</strong></span><span>{text.closingBalance}<strong>{formatDuration(bankWeek.closingBalanceMinutes)}</strong></span></div><div className="hour-bank-days"><div className="hour-bank-day hour-bank-day-head"><span>{text.date}</span><span>{text.actual}</span><span>{text.clientTime}</span><span>{text.bankMovement}</span></div>{bankWeek.days.map((day) => <div className="hour-bank-day" key={day.workDate}><span>{formatDate(day.workDate)}</span><strong>{formatDuration(day.actualMinutes)}</strong><strong>{formatDuration(day.billedMinutes)}</strong><strong className={day.movementMinutes < 0 ? 'negative' : day.movementMinutes > 0 ? 'positive' : ''}>{day.movementMinutes > 0 ? '+' : ''}{formatDuration(day.movementMinutes)}</strong></div>)}</div><label className="hour-bank-note">{text.bankNote}<input value={bankNote} maxLength={500} onChange={(event) => setBankNote(event.target.value)} /></label>{bankError ? <p className="error-message">{bankError}</p> : null}<div className="hour-bank-footer"><small>{formatDuration(bankWeek.project.maxDailyBillableMinutes)} / {language === 'fr' ? 'jour' : 'day'} · {formatDuration(bankWeek.project.maxWeeklyBillableMinutes)} / {language === 'fr' ? 'semaine' : 'week'}</small><button className="primary-button small" disabled={bankBusy} onClick={() => void saveBankWeek()}>{bankWeek.isClosed ? text.updateWeek : text.closeWeek}</button></div></section></div> : null}
     {restoreOpen ? <div className="modal-backdrop"><section className="client-modal import-modal"><div className="modal-heading"><h2>{text.restore}</h2><button className="close-button" disabled={restoreBusy} onClick={() => setRestoreOpen(false)}>×</button></div><p className="import-warning">{language === 'fr' ? 'La restauration remplacera tous vos clients, projets et entrées actuels par le contenu de la sauvegarde. Votre compte et les données des autres utilisateurs ne seront pas modifiés.' : 'Restore will replace all your current clients, projects and entries with the backup contents. Your account and other users’ data will not be changed.'}</p><label className="import-file">{language === 'fr' ? 'Sauvegarde OnTime (.json)' : 'OnTime backup (.json)'}<input type="file" accept=".json,application/json" disabled={restoreBusy} onChange={(event) => { setRestoreFile(event.target.files?.[0] ?? null); setRestoreAnalysis(null); setRestoreConfirmation(''); setRestoreError(''); }} /></label><button className="secondary-button" disabled={!restoreFile || restoreBusy} onClick={() => void analyzeRestore()}>{restoreBusy && !restoreAnalysis ? (language === 'fr' ? 'Analyse…' : 'Analyzing…') : (language === 'fr' ? 'Analyser la sauvegarde' : 'Analyze backup')}</button>{restoreAnalysis ? <><div className="import-summary"><div><span>Clients</span><strong>{restoreAnalysis.clients}</strong></div><div><span>{language === 'fr' ? 'Projets' : 'Projects'}</span><strong>{restoreAnalysis.projects}</strong></div><div><span>{text.items}</span><strong>{restoreAnalysis.entries}</strong></div><div><span>{text.hours}</span><strong>{formatDuration(restoreAnalysis.totalMinutes)}</strong></div><div><span>{language === 'fr' ? 'Période' : 'Period'}</span><strong>{restoreAnalysis.firstDate && restoreAnalysis.lastDate ? `${formatDate(restoreAnalysis.firstDate)} – ${formatDate(restoreAnalysis.lastDate)}` : '—'}</strong></div><div><span>{text.value}</span><strong>${Number(restoreAnalysis.totalAmount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</strong></div></div><p className="import-details">{language === 'fr' ? `${restoreAnalysis.billed} facturées · ${restoreAnalysis.deleted} supprimées. Les états actifs, les tarifs et les dates originales seront conservés.` : `${restoreAnalysis.billed} billed · ${restoreAnalysis.deleted} deleted. Active states, rates and original dates will be preserved.`}</p><label className="import-confirmation">{language === 'fr' ? 'Pour confirmer le remplacement, écrivez RESTAURER' : 'To confirm replacement, type RESTAURER'}<input value={restoreConfirmation} disabled={restoreBusy} onChange={(event) => setRestoreConfirmation(event.target.value)} autoComplete="off" /></label></> : null}{restoreError ? <p className="error-message">{restoreError}</p> : null}<div className="modal-actions"><button className="secondary-button" disabled={restoreBusy} onClick={() => setRestoreOpen(false)}>{text.back}</button><button className="primary-button danger-import" disabled={!restoreAnalysis || restoreConfirmation !== 'RESTAURER' || restoreBusy} onClick={() => void executeRestore()}>{restoreBusy && restoreAnalysis ? (language === 'fr' ? 'Restauration…' : 'Restoring…') : (language === 'fr' ? 'Restaurer mes données' : 'Restore my data')}</button></div></section></div> : null}
   </main>;

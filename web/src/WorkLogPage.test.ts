@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   firstDescriptionLine,
   hasEnabledHourBank,
+  hourBankBalanceThroughDate,
   possibleWorkingMinutes,
   shiftPeriod,
 } from './WorkLogPage';
@@ -11,6 +12,25 @@ describe('work log description preview', () => {
     expect(firstDescriptionLine('Résumé du travail\n- Première tâche\n- Deuxième tâche')).toBe('Résumé du travail');
     expect(firstDescriptionLine('Une seule ligne')).toBe('Une seule ligne');
     expect(firstDescriptionLine('Windows\r\nDeuxième ligne')).toBe('Windows');
+  });
+});
+
+describe('hour-bank balance for the selected period', () => {
+  const week = {
+    openingBalanceMinutes: 10_740,
+    days: [
+      { workDate: '2026-07-27', movementMinutes: 60 },
+      { workDate: '2026-07-28', movementMinutes: -30 },
+      { workDate: '2026-07-29', movementMinutes: 120 },
+    ],
+  };
+
+  test('includes the bank when the period ends on its first covered day', () => {
+    expect(hourBankBalanceThroughDate(week, '2026-07-27')).toBe(10_800);
+  });
+
+  test('does not include movements after the selected period end', () => {
+    expect(hourBankBalanceThroughDate(week, '2026-07-28')).toBe(10_770);
   });
 });
 

@@ -28,7 +28,7 @@ export const HELP_CONTENT = {
     manualSections: [
       ['Bien démarrer', 'Créez votre compte pour profiter d’un essai gratuit de 7 jours. Ajoutez ensuite un client actif, puis au moins un projet actif avec son taux horaire. Vous pourrez alors consigner vos premières heures.'],
       ['Journal de travail', 'Utilisez les périodes Jour, Semaine, Mois, Année ou Personnalisé. Les flèches déplacent la période courante. Les filtres Client et Projet changent uniquement la liste affichée; ils ne sont pas obligatoires pour créer une entrée.'],
-      ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date, les heures et une description. Une valeur entière comme 4 peut être convertie en 04:00 après votre confirmation. Les heures utilisent des blocs de 15 minutes.'],
+      ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date, les heures et une description. Une valeur entière comme 4 peut être convertie en 04:00 après votre confirmation. Les heures utilisent des blocs de 15 minutes. Sur iPhone, le journal présente des cartes tactiles et un bouton Ajouter toujours accessible.'],
       ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
       ['Banque d’heures', 'Activez la banque dans la fiche du projet, choisissez un solde initial et les limites quotidiennes et hebdomadaires propres à ce contrat. Dans une entrée, Heures travaillées représente le temps réel et Heures facturables le temps porté au projet; la différence alimente ou utilise la banque.'],
       ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Dans une fiche projet, le taux peut être révélé temporairement avec le bouton prévu à cet effet. Votre choix est mémorisé dans le navigateur.'],
@@ -58,6 +58,7 @@ export const HELP_CONTENT = {
       'Souscriptions, essai gratuit de 7 jours et historique des renouvellements.',
       'Administration des utilisateurs et de leurs accès.',
       'Améliorations d’accessibilité, messages d’aide et validations guidées.',
+      'Journal optimisé pour la saisie quotidienne sur iPhone.',
     ],
   },
   en: {
@@ -69,7 +70,7 @@ export const HELP_CONTENT = {
     manualSections: [
       ['Getting started', 'Create your account to receive a free 7-day trial. Next, add an active client and at least one active project with its hourly rate. You can then record your first hours.'],
       ['Work log', 'Use Day, Week, Month, Year or Custom periods. The arrows move the current period. Client and Project filters only change the displayed list; they are not required to create an entry.'],
-      ['Creating an entry', 'Select New entry, choose the client and project, then enter the date, hours and a description. A whole number such as 4 can be converted to 04:00 after confirmation. Hours use 15-minute increments.'],
+      ['Creating an entry', 'Select New entry, choose the client and project, then enter the date, hours and a description. A whole number such as 4 can be converted to 04:00 after confirmation. Hours use 15-minute increments. On iPhone, the work log uses touch-friendly cards and an Add button that remains available.'],
       ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. Entries are deleted individually and can be restored with Show deleted.'],
       ['Hour bank', 'Enable the bank in the project record and choose the opening balance and daily and weekly limits for that contract. Worked hours is the actual time and Billable hours is the time assigned to the project; their difference adds to or uses the bank.'],
       ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. In a project record, the rate can be revealed temporarily with its dedicated button. Your choice is remembered by the browser.'],
@@ -99,6 +100,7 @@ export const HELP_CONTENT = {
       'Subscriptions, a free 7-day trial and renewal history.',
       'User and access administration.',
       'Accessibility improvements, helpful messages and guided validation.',
+      'Work log optimized for daily entry on iPhone.',
     ],
   },
 } as const;

@@ -8,6 +8,12 @@ export class ProjectUnavailableError extends Error {}
 export class InvalidDurationError extends Error {}
 export class InvalidDescriptionError extends Error {}
 export class ClientTimeLimitError extends Error {}
+export class DuplicateTargetOccupiedError extends Error {
+  constructor(public readonly targetDate: string) {
+    super('The duplicate target date already contains an entry');
+    this.name = 'DuplicateTargetOccupiedError';
+  }
+}
 
 type EntryInput = {
   projectId: string;
@@ -234,7 +240,12 @@ const nextBusinessDay = (date: string) => {
   return value.toISOString().slice(0, 10);
 };
 
-export const duplicateEntry = async (userId: string, id: string, nextWorkday: boolean) => {
+export const duplicateEntry = async (
+  userId: string,
+  id: string,
+  nextWorkday: boolean,
+  confirmExisting = false,
+) => {
   const [source] = await database.select({ entry: workEntries }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(workEntries.id, id), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
   if (!source) throw new EntryNotFoundError('Entry not found');
@@ -242,6 +253,18 @@ export const duplicateEntry = async (userId: string, id: string, nextWorkday: bo
   // Une copie reprend intégralement les valeurs historiques, mais commence
   // toujours comme une entrée visible et non facturée.
   const workDate = nextWorkday ? nextBusinessDay(entry.workDate) : entry.workDate;
+  const [existingTarget] = await database
+    .select({ id: workEntries.id })
+    .from(workEntries)
+    .where(and(
+      eq(workEntries.userId, userId),
+      eq(workEntries.workDate, workDate),
+      eq(workEntries.isDeleted, false),
+    ))
+    .limit(1);
+  if (existingTarget && !confirmExisting) {
+    throw new DuplicateTargetOccupiedError(workDate);
+  }
   const context = await visibleProject(userId, entry.projectId);
   const clientMinutes = await clientTimeFor(userId, context, {
     workDate,

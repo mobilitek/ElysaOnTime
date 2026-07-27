@@ -166,6 +166,10 @@ export function ProfilePage({
           </tbody></table></div>
         </section>
       </section>
+      <nav className="mobile-primary-nav mobile-profile-nav" aria-label={language === 'fr' ? 'Navigation mobile' : 'Mobile navigation'}>
+        <button type="button" onClick={onNavigateWorkLog}><span aria-hidden="true">☷</span>{text.journal}</button>
+        <button type="button" className="active"><span aria-hidden="true">○</span>{text.profile}</button>
+      </nav>
     </main>
   );
 }

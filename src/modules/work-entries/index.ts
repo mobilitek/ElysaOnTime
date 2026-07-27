@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { SESSION_COOKIE_NAME } from '../auth/constants';
 import { getSessionToken } from '../auth/cookie';
 import { getUserBySessionToken, hasFullAccess } from '../auth/service';
-import { ClientTimeLimitError, createEntry, duplicateEntry, EntryNotFoundError, InvalidDescriptionError, InvalidDurationError, listEntries, ProjectUnavailableError, toggleEntries, updateEntry } from './service';
+import { ClientTimeLimitError, createEntry, duplicateEntry, DuplicateTargetOccupiedError, EntryNotFoundError, InvalidDescriptionError, InvalidDurationError, listEntries, ProjectUnavailableError, toggleEntries, updateEntry } from './service';
 import { exportWorkEntries } from './export';
 
 const userFor = async (value: unknown) => getUserBySessionToken(getSessionToken(value));
@@ -23,6 +23,12 @@ const errors = (error: unknown, status: (code: number, body: unknown) => unknown
     return status(422, { error: 'CLIENT_TIME_LIMIT', message: error.message });
   }
   if (error instanceof InvalidDescriptionError) return status(422, { error: 'DESCRIPTION_REQUIRED' });
+  if (error instanceof DuplicateTargetOccupiedError) {
+    return status(409, {
+      error: 'DUPLICATE_TARGET_OCCUPIED',
+      targetDate: error.targetDate,
+    });
+  }
   throw error;
 };
 
@@ -46,4 +52,4 @@ export const workEntryRoutes = new Elysia({ prefix: '/api/work-entries' })
   .patch('/:id', async ({ body, cookie, params, status }) => { const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' }); if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' }); try { return { entry: await updateEntry(user.id, params.id, body) }; } catch (error) { return errors(error, status); } }, { params: t.Object({ id: t.String({ format: 'uuid' }) }), body: entryBody })
   .post('/toggle-billed', async ({ body, cookie, status }) => { const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' }); if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' }); try { return { entries: await toggleEntries(user.id, body.ids, 'isBilled') }; } catch (error) { return errors(error, status); } }, { body: t.Object({ ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }) }) })
   .post('/toggle-deleted', async ({ body, cookie, status }) => { const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' }); if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' }); try { return { entries: await toggleEntries(user.id, body.ids, 'isDeleted') }; } catch (error) { return errors(error, status); } }, { body: t.Object({ ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }) }) })
-  .post('/:id/duplicate', async ({ body, cookie, params, status }) => { const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' }); if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' }); try { return status(201, { entry: await duplicateEntry(user.id, params.id, body.nextWorkday) }); } catch (error) { return errors(error, status); } }, { params: t.Object({ id: t.String({ format: 'uuid' }) }), body: t.Object({ nextWorkday: t.Boolean() }) });
+  .post('/:id/duplicate', async ({ body, cookie, params, status }) => { const user = await userFor(cookie[SESSION_COOKIE_NAME].value); if (!user) return status(401, { error: 'UNAUTHENTICATED' }); if (!hasFullAccess(user)) return status(403, { error: 'SUBSCRIPTION_REQUIRED' }); try { return status(201, { entry: await duplicateEntry(user.id, params.id, body.nextWorkday, body.confirmExisting ?? false) }); } catch (error) { return errors(error, status); } }, { params: t.Object({ id: t.String({ format: 'uuid' }) }), body: t.Object({ nextWorkday: t.Boolean(), confirmExisting: t.Optional(t.Boolean()) }) });

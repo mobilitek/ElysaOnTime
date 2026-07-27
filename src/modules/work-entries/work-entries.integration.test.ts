@@ -63,6 +63,15 @@ describe.skipIf(!run)('work entries integration', () => {
     const response = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(response.status).toBe(201);
     expect(((await response.json()) as { entry: object }).entry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '89.00', amount: '133.50', isBilled: false, isDeleted: false });
+
+    const occupied = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
+    expect(occupied.status).toBe(409);
+    expect(await occupied.json()).toMatchObject({ error: 'DUPLICATE_TARGET_OCCUPIED', targetDate: '2026-07-20' });
+
+    const confirmed = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true, confirmExisting: true });
+    expect(confirmed.status).toBe(201);
+    const confirmedEntry = ((await confirmed.json()) as { entry: { id: string } }).entry;
+    await database.delete(workEntries).where(eq(workEntries.id, confirmedEntry.id));
   });
 
   test('exports a confidential legacy-compatible Excel workbook without financial or billed columns', async () => {

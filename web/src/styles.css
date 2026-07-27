@@ -420,6 +420,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .description-preview:focus-visible { border-radius: 3px; outline: 2px solid var(--teal); outline-offset: 3px; }
 .description-tooltip { position: fixed; z-index: 1000; width: max-content; max-width: min(540px, calc(100vw - 24px)); max-height: min(420px, calc(100vh - 24px)); overflow: auto; border: 1px solid #b8c6d3; border-radius: 10px; padding: 12px 14px; background: #17243a; box-shadow: 0 14px 35px rgba(23, 36, 58, .24); color: white; font-size: 13px; line-height: 1.45; white-space: pre-wrap; pointer-events: none; }
 .journal-table tr.deleted-entry { opacity: .55; text-decoration: line-through; background: #fff3f2; }
+.mobile-entry-list,
+.mobile-primary-nav { display: none; }
 .row-actions { display: flex; gap: 5px; }
 .row-actions button { border: 1px solid var(--line); border-radius: 6px; background: white; padding: 5px 7px; cursor: pointer; }
 .row-actions .delete-entry-action { border-color: #efc8c4; color: #b42318; background: #fff7f6; font-weight: 900; }
@@ -607,6 +609,96 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .help-brand { display: none; }
   .help-tabs { overflow-x: auto; }
   .help-tabs button { min-width: 110px; }
+}
+
+/* Expérience iPhone : le journal devient une liste tactile centrée sur la
+   saisie quotidienne. Les écrans de gestion conservent leur présentation
+   complète sur iPad et ordinateur. */
+@media (max-width: 600px) {
+  .app-page { padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
+  .app-header { min-height: 60px; padding: 0 14px; }
+  .app-brand .brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+  .app-brand > span:last-child { display: none; }
+  .language-switch.compact button { width: 38px; height: 34px; }
+  .content-shell { width: calc(100% - 24px); padding: 24px 0 34px; }
+  .page-heading { gap: 16px; margin-bottom: 20px; }
+  .page-heading h1 { font-size: 2rem; }
+  .heading-actions { width: 100%; }
+  .heading-actions .export-button,
+  .heading-actions .import-button { display: none; }
+  .heading-actions .add-button { width: 100%; min-height: 52px; justify-content: center; }
+
+  .journal-filters { grid-template-columns: 1fr; gap: 12px; padding: 14px; }
+  .journal-filters input,
+  .journal-filters select,
+  .entry-modal input,
+  .entry-modal select,
+  .entry-modal textarea { font-size: 16px; }
+  .period-selector { min-width: 0; }
+  .period-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .period-arrow { min-width: 44px; min-height: 44px; }
+  .preset-group { scroll-snap-type: x proximity; }
+  .preset-group button { min-height: 44px; scroll-snap-align: start; }
+
+  .journal-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .journal-summary > div { min-width: 0; padding: 11px 12px; }
+  .journal-summary strong { font-size: 17px; }
+  .journal-summary .bank-summary-card,
+  .bank-summary-card { min-width: 0; grid-column: 1 / -1; }
+  .journal-summary > label { grid-column: 1 / -1; min-height: 44px; margin-left: 0; }
+  .journal-actions { display: none; }
+  .journal-table-wrap { display: none; }
+
+  .mobile-entry-list { display: grid; gap: 12px; }
+  .mobile-entry-card { border: 1px solid var(--line); border-radius: 16px; padding: 15px; background: white; box-shadow: 0 8px 22px rgba(27, 55, 84, .06); }
+  .mobile-entry-card.deleted-entry { opacity: .58; background: #fff6f5; }
+  .mobile-entry-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .mobile-entry-heading > div { display: grid; gap: 3px; min-width: 0; }
+  .mobile-entry-heading strong,
+  .mobile-entry-heading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-entry-heading strong { color: var(--ink); font-size: 15px; }
+  .mobile-entry-heading span { color: var(--ink-soft); font-size: 12px; }
+  .mobile-entry-heading time { flex: 0 0 auto; color: var(--ink-soft); font-size: 12px; font-weight: 750; }
+  .mobile-entry-description { width: 100%; min-height: 44px; margin: 9px 0; overflow: hidden; border: 0; padding: 8px 0; background: transparent; color: var(--ink); font: inherit; line-height: 1.45; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-entry-metrics { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mobile-entry-metrics > span { min-width: 82px; display: grid; gap: 2px; border-radius: 9px; padding: 8px 10px; background: #f1f6f9; }
+  .mobile-entry-metrics small { color: var(--ink-soft); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .mobile-entry-metrics strong { font-size: 14px; }
+  .mobile-entry-footer { display: grid; gap: 10px; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .mobile-entry-footer > label { min-height: 44px; display: flex; align-items: center; gap: 9px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+  .mobile-entry-footer input { width: 20px; height: 20px; }
+  .mobile-entry-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .mobile-entry-actions button { min-height: 44px; border: 1px solid var(--line); border-radius: 9px; padding: 0 11px; background: white; color: var(--ink); font-size: 12px; font-weight: 750; }
+  .mobile-entry-actions .delete-entry-action { color: #a52c24; }
+  .mobile-entry-actions .restore-entry-action { color: #087443; }
+  .mobile-empty-state { margin: 0; border: 1px dashed var(--line); border-radius: 16px; padding: 38px 20px; color: var(--ink-soft); background: white; text-align: center; }
+
+  .journal-pagination { display: grid; grid-template-columns: 1fr auto 1fr; margin-bottom: 8px; }
+  .journal-pagination label { display: none; }
+  .journal-pagination button { min-height: 44px; }
+  .journal-pagination button:last-child { grid-column: 3; }
+  .journal-pagination span { grid-column: 2; grid-row: 1; white-space: nowrap; }
+
+  .modal-backdrop { align-items: stretch; overflow: hidden; padding: 0; }
+  .entry-modal { width: 100%; max-width: none; min-height: 100dvh; max-height: 100dvh; overflow-y: auto; border-radius: 0; padding: 18px 18px calc(28px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+  .entry-modal .modal-heading { position: sticky; top: -18px; z-index: 2; margin: -18px -18px 18px; border-bottom: 1px solid var(--line); padding: 14px 18px; background: rgba(255, 255, 255, .97); }
+  .entry-modal .close-button { width: 44px; height: 44px; }
+  .entry-assignment-grid,
+  .entry-time-grid { grid-template-columns: 1fr; }
+  .entry-modal textarea { min-height: 126px; }
+  .entry-bank-preview { align-items: flex-start; flex-wrap: wrap; }
+  .entry-bank-preview small { width: 100%; margin-left: 0; }
+  .entry-modal .modal-actions { position: sticky; bottom: calc(-28px - env(safe-area-inset-bottom)); z-index: 2; margin: 8px -18px calc(-28px - env(safe-area-inset-bottom)); border-top: 1px solid var(--line); padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 24px rgba(27, 55, 84, .08); }
+
+  .mobile-primary-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 850; min-height: 66px; display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; border-top: 1px solid #d8e2e9; padding: 7px 12px calc(7px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 28px rgba(27, 55, 84, .1); backdrop-filter: blur(16px); }
+  .mobile-primary-nav button { min-height: 50px; display: grid; place-items: center; gap: 2px; border: 0; border-radius: 11px; padding: 4px; color: #6f7e90; background: transparent; font-size: 10px; font-weight: 800; }
+  .mobile-primary-nav button > span { font-size: 20px; line-height: 1; }
+  .mobile-primary-nav button.active { color: var(--teal); background: #edf8f7; }
+  .mobile-primary-nav .mobile-add-entry { color: white; background: linear-gradient(135deg, #087f8b, #18a29b); box-shadow: 0 8px 18px rgba(8, 127, 139, .24); }
+  .mobile-profile-nav { grid-template-columns: repeat(2, 1fr); }
+  .floating-help-button { bottom: calc(84px + env(safe-area-inset-bottom)); width: 46px; height: 46px; }
+
+  .profile-card { padding: 20px; }
 }
 
 /* Les contrôles modifiables partagent un langage visuel clair dans toute l'application. */
