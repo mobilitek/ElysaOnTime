@@ -14,6 +14,7 @@ type Props = {
   onLanguageChange: (language: Language) => void;
   onLogout: () => Promise<void>;
   onBack: () => void;
+  onNavigateWorkLog: () => void;
 };
 
 export const CURRENT_VERSION = '0.2.0';
@@ -24,7 +25,7 @@ export const HELP_CONTENT = {
     title: 'Comment pouvons-nous vous aider?',
     subtitle: 'Consultez le manuel complet, l’aide de votre écran ou les nouveautés d’OnTime.',
     manual: 'Manuel', page: 'Cette page', about: 'À propos',
-    version: 'Version actuelle', released: 'Mise à jour de juillet 2026',
+    version: 'Version actuelle', current: 'Actuelle',
     manualSections: [
       ['Bien démarrer', 'Créez votre compte pour profiter d’un essai gratuit de 7 jours. Ajoutez ensuite un client actif, puis au moins un projet actif avec son taux horaire. Vous pourrez alors consigner vos premières heures.'],
       ['Journal de travail', 'Utilisez les périodes Jour, Semaine, Mois, Année ou Personnalisé. Les flèches déplacent la période courante. Les filtres Client et Projet changent uniquement la liste affichée; ils ne sont pas obligatoires pour créer une entrée.'],
@@ -46,19 +47,35 @@ export const HELP_CONTENT = {
       admin: ['Administration', ['Recherchez et modifiez les comptes utilisateurs.', 'Les statuts suspendu et désactivé bloquent la connexion.', 'Enregistrez les renouvellements avec leur type, période et statut de paiement.', 'Votre propre droit administrateur est protégé contre une suppression accidentelle.']],
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
-    improvements: [
-      'Journal de travail bilingue avec périodes, filtres, tri et pagination.',
-      'Gestion complète des clients, projets, taux horaires et entrées.',
-      'Export Excel compatible avec le format historique destiné aux clients.',
-      'Mode confidentiel protégeant toutes les informations financières.',
-      'Banque d’heures propre à chaque projet avec temps réel, temps facturable et soldes hebdomadaires.',
-      'Protection du taux horaire dans les fiches projet lorsque le mode confidentiel est actif.',
-      'Sauvegarde, restauration et import contrôlé des données.',
-      'Comptes sécurisés, récupération du mot de passe et profils personnels.',
-      'Souscriptions, essai gratuit de 7 jours et historique des renouvellements.',
-      'Administration des utilisateurs et de leurs accès.',
-      'Améliorations d’accessibilité, messages d’aide et validations guidées.',
-      'Journal optimisé pour la saisie quotidienne sur iPhone.',
+    releases: [
+      {
+        version: '0.2.0',
+        date: '27 juillet 2026',
+        changes: [
+          'Banque d’heures propre à chaque projet avec temps réel, temps facturable, soldes hebdomadaires et révision des périodes qui la chevauchent.',
+          'Souscriptions, essai gratuit de 7 jours, historique des renouvellements et administration des accès.',
+          'Sauvegarde JSON, restauration et import Excel contrôlé des données.',
+          'Récupération sécurisée du mot de passe par courriel.',
+          'Protection des taux et informations financières avec le mode confidentiel.',
+          'Centre d’aide bilingue avec manuel et aide contextuelle.',
+          'Journal optimisé pour iPhone avec cartes tactiles et navigation mobile.',
+          'Confirmation avant de dupliquer une entrée vers une date déjà occupée.',
+          'Déploiement de production renforcé avec HTTPS et services Docker isolés.',
+        ],
+      },
+      {
+        version: '0.1.0',
+        date: '18 juillet 2026',
+        changes: [
+          'Première version du journal de travail bilingue.',
+          'Création de compte et authentification par session.',
+          'Gestion des clients, projets, taux horaires et entrées.',
+          'Périodes Jour, Semaine, Mois, Année et Personnalisé avec filtres, tri et pagination.',
+          'Suivi des entrées facturées et restauration des entrées supprimées.',
+          'Export Excel compatible avec le format historique destiné aux clients.',
+          'Gestion du profil utilisateur et mémorisation des préférences.',
+        ],
+      },
     ],
   },
   en: {
@@ -66,7 +83,7 @@ export const HELP_CONTENT = {
     title: 'How can we help?',
     subtitle: 'Browse the complete manual, help for your current screen, or what is new in OnTime.',
     manual: 'Manual', page: 'This page', about: 'About',
-    version: 'Current version', released: 'July 2026 update',
+    version: 'Current version', current: 'Current',
     manualSections: [
       ['Getting started', 'Create your account to receive a free 7-day trial. Next, add an active client and at least one active project with its hourly rate. You can then record your first hours.'],
       ['Work log', 'Use Day, Week, Month, Year or Custom periods. The arrows move the current period. Client and Project filters only change the displayed list; they are not required to create an entry.'],
@@ -88,26 +105,42 @@ export const HELP_CONTENT = {
       admin: ['Administration', ['Search for and edit user accounts.', 'Suspended and disabled statuses prevent sign-in.', 'Record renewals with their type, period and payment status.', 'Your own administrator permission is protected from accidental removal.']],
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
-    improvements: [
-      'Bilingual work log with periods, filters, sorting and pagination.',
-      'Complete management of clients, projects, hourly rates and entries.',
-      'Excel exports compatible with the historical client-facing format.',
-      'Confidential mode protecting all financial information.',
-      'Project-based hour bank with actual time, billable time and weekly balances.',
-      'Hourly-rate protection in project records while confidential mode is enabled.',
-      'Controlled data backup, restore and import.',
-      'Secure accounts, password recovery and personal profiles.',
-      'Subscriptions, a free 7-day trial and renewal history.',
-      'User and access administration.',
-      'Accessibility improvements, helpful messages and guided validation.',
-      'Work log optimized for daily entry on iPhone.',
+    releases: [
+      {
+        version: '0.2.0',
+        date: 'July 27, 2026',
+        changes: [
+          'Project-based hour bank with actual time, billable time, weekly balances and review for overlapping periods.',
+          'Subscriptions, a free 7-day trial, renewal history and access administration.',
+          'Controlled JSON backup, restore and Excel data import.',
+          'Secure password recovery by email.',
+          'Rate and financial-data protection with confidential mode.',
+          'Bilingual help center with a manual and contextual help.',
+          'iPhone-optimized work log with touch-friendly cards and mobile navigation.',
+          'Confirmation before duplicating an entry to an occupied date.',
+          'Hardened production deployment with HTTPS and isolated Docker services.',
+        ],
+      },
+      {
+        version: '0.1.0',
+        date: 'July 18, 2026',
+        changes: [
+          'First version of the bilingual work log.',
+          'Account registration and session authentication.',
+          'Management of clients, projects, hourly rates and entries.',
+          'Day, Week, Month, Year and Custom periods with filters, sorting and pagination.',
+          'Tracking of billed entries and restoration of deleted entries.',
+          'Excel exports compatible with the historical client-facing format.',
+          'User profile management and remembered preferences.',
+        ],
+      },
     ],
   },
 } as const;
 
 export function HelpCenterPage({
   language, user, context, systemInfo, systemInfoError,
-  onLanguageChange, onLogout, onBack,
+  onLanguageChange, onLogout, onBack, onNavigateWorkLog,
 }: Props) {
   const text = HELP_CONTENT[language];
   const [tab, setTab] = useState<Tab>('page');
@@ -116,7 +149,7 @@ export function HelpCenterPage({
   return <main className="app-page">
     <header className="app-header">
       <button className="help-back" onClick={onBack}>← {text.back}</button>
-      <div className="app-brand help-brand"><span className="brand-mark">OT</span><span>OnTime</span></div>
+      <button className="app-brand help-brand help-brand-button" type="button" onClick={onNavigateWorkLog} aria-label={language === 'fr' ? 'Retourner au journal' : 'Return to work log'}><span className="brand-mark">OT</span><span>OnTime</span></button>
       <div className="header-actions">
         <div className="language-switch compact">{(['fr', 'en'] as const).map((value) => <button key={value} className={language === value ? 'active' : ''} onClick={() => onLanguageChange(value)}>{value.toUpperCase()}</button>)}</div>
         <UserEnvironmentChip user={user} systemInfo={systemInfo} systemInfoError={systemInfoError} logoutLabel={text.logout} onLogout={onLogout} />
@@ -129,7 +162,7 @@ export function HelpCenterPage({
       </div>
       {tab === 'manual' ? <div className="manual-grid">{text.manualSections.map(([title, description]) => <article className="help-card" key={title}><h2>{title}</h2><p>{description}</p></article>)}</div> : null}
       {tab === 'page' ? <article className="help-card contextual-help"><p className="eyebrow">{text.page}</p><h2>{contextual[0]}</h2><ol>{contextual[1].map((item) => <li key={item}>{item}</li>)}</ol></article> : null}
-      {tab === 'about' ? <div className="about-layout"><article className="help-card about-summary"><span className="brand-mark">OT</span><div><h2>OnTime</h2><p>{text.version} <strong>{CURRENT_VERSION}</strong></p></div></article><article className="help-card release-card"><div className="release-heading"><h2>OnTime {CURRENT_VERSION}</h2><span>{text.released}</span></div><ul>{text.improvements.map((item) => <li key={item}>{item}</li>)}</ul></article></div> : null}
+      {tab === 'about' ? <div className="about-layout"><article className="help-card about-summary"><span className="brand-mark">OT</span><div><h2>OnTime</h2><p>{text.version} <strong>{CURRENT_VERSION}</strong></p></div></article>{text.releases.map((release, index) => <article className="help-card release-card" key={release.version}><div className="release-heading"><h2>OnTime {release.version}</h2><div className="release-meta">{index === 0 ? <strong>{text.current}</strong> : null}<span>{release.date}</span></div></div><ul>{release.changes.map((item) => <li key={item}>{item}</li>)}</ul></article>)}</div> : null}
     </section>
   </main>;
 }

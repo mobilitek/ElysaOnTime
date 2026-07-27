@@ -15,9 +15,14 @@ describe('bilingual help center content', () => {
     }
   });
 
-  test('documents the current version with user-facing improvements', () => {
+  test('documents a bilingual release history including the current version', () => {
     expect(CURRENT_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(HELP_CONTENT.fr.improvements.length).toBeGreaterThanOrEqual(8);
-    expect(HELP_CONTENT.en.improvements.length).toBe(HELP_CONTENT.fr.improvements.length);
+    expect(HELP_CONTENT.fr.releases.length).toBeGreaterThanOrEqual(2);
+    expect(HELP_CONTENT.en.releases.length).toBe(HELP_CONTENT.fr.releases.length);
+    expect(HELP_CONTENT.fr.releases[0].version).toBe(CURRENT_VERSION);
+    expect(HELP_CONTENT.en.releases[0].version).toBe(CURRENT_VERSION);
+    for (const release of HELP_CONTENT.fr.releases) {
+      expect(release.changes.length).toBeGreaterThan(0);
+    }
   });
 });

@@ -541,6 +541,9 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .floating-help-button:focus-visible { outline: 4px solid rgba(8, 127, 139, .25); outline-offset: 3px; }
 .help-back { border: 0; padding: 10px 12px; color: var(--ink); background: transparent; cursor: pointer; font-weight: 800; }
 .help-brand { margin-right: auto; }
+.help-brand-button { border: 0; padding: 6px; color: inherit; background: transparent; cursor: pointer; font: inherit; }
+.help-brand-button:hover { color: var(--teal); }
+.help-brand-button:focus-visible { border-radius: 10px; outline: 3px solid rgba(8, 127, 139, .25); outline-offset: 2px; }
 .help-shell { max-width: 1180px; padding-bottom: 80px; }
 .help-tabs { display: flex; gap: 5px; margin: 4px 0 24px; border: 1px solid var(--line); border-radius: 14px; padding: 5px; background: #edf3f7; }
 .help-tabs button { flex: 1; min-height: 46px; border: 0; border-radius: 10px; color: var(--ink-soft); background: transparent; cursor: pointer; font: inherit; font-weight: 800; }
@@ -561,6 +564,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .release-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .release-heading h2 { margin: 0; font-size: 1.3rem; }
 .release-heading span { border-radius: 999px; padding: 6px 10px; color: #126b70; background: #e8f8f5; font-size: .75rem; font-weight: 800; }
+.release-meta { display: flex; align-items: center; gap: 8px; }
+.release-meta > strong { border-radius: 999px; padding: 6px 10px; color: white; background: var(--teal); font-size: .75rem; }
 .release-card ul { display: grid; gap: 11px; margin: 0; padding-left: 22px; }
 .release-card li { color: var(--ink); line-height: 1.5; }
 .release-card li::marker { color: var(--teal); }

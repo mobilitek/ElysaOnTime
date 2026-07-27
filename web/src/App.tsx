@@ -245,7 +245,7 @@ export function App() {
       <button className="floating-help-button" title={language === 'fr' ? 'Aide pour cette page' : 'Help for this page'} aria-label={language === 'fr' ? 'Aide pour cette page' : 'Help for this page'} onClick={() => openHelp(context, returnPage)}>?</button>
     </>;
     if (page === 'help') {
-      return <HelpCenterPage language={language} user={user} context={helpContext} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onBack={() => setPage(helpReturnPage)} />;
+      return <HelpCenterPage language={language} user={user} context={helpContext} systemInfo={systemInfo} systemInfoError={systemInfoError} onLanguageChange={selectLanguage} onLogout={logout} onBack={() => setPage(helpReturnPage)} onNavigateWorkLog={() => setPage('worklog')} />;
     }
     // La navigation de phase 1 demeure un état React simple; chaque page partage
     // l'utilisateur, la langue et les callbacks de la barre de navigation.
