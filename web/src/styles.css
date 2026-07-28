@@ -355,7 +355,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 }
 
 /* Journal de travail : filtres, résumé, grille et pagination. */
-.worklog-shell { max-width: 1500px; }
+.worklog-shell { max-width: 1500px; padding-top: 28px; }
+.worklog-shell > .page-heading { margin-bottom: 20px; }
 .heading-actions { display: flex; align-items: center; gap: 10px; }
 .export-button { min-width: 140px; }
 .import-button { min-width: 140px; }
@@ -430,8 +431,10 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .journal-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .journal-pagination label { display: flex; align-items: center; gap: 8px; margin-right: auto; }
 .journal-pagination select, .journal-pagination button { border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; background: white; }
-.entry-modal { width: min(760px, calc(100vw - 32px)); }
-.entry-modal form { display: grid; gap: 16px; }
+.entry-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; }
+.entry-modal > .modal-heading { margin-bottom: 18px; }
+.entry-modal form { display: grid; gap: 12px; }
+.entry-modal .modal-actions { margin-top: 16px; }
 .entry-modal textarea { resize: vertical; min-height: 180px; }
 .entry-description-field { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .outline-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #f7fafc; color: var(--ink); font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: normal; }
@@ -444,6 +447,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .outline-copy { border-color: var(--line); background: white; color: var(--ink-soft); }
 .outline-legacy-note { margin: 0; border-bottom: 1px solid #ead9a9; padding: 9px 12px; background: #fff9e9; color: #74530b; font-size: 12px; line-height: 1.4; }
 .outline-lines { display: grid; gap: 5px; max-height: 390px; overflow: auto; padding: 10px; }
+.entry-modal .outline-lines { max-height: min(225px, 26vh); }
 .outline-line { display: grid; grid-template-columns: 88px 18px minmax(180px, 1fr) auto; align-items: center; gap: 5px; margin-left: min(calc(var(--outline-depth) * 24px), 60%); transition: margin-left 120ms ease, opacity 120ms ease; }
 .outline-line-internal { opacity: .7; }
 .outline-line-internal input { text-decoration: line-through; }
@@ -729,7 +733,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .outline-heading-actions { width: 100%; }
   .outline-heading-actions button { flex: 1; }
   .outline-line-actions { grid-column: 3; opacity: 1; }
-  .outline-lines { max-height: none; }
+  .entry-modal .outline-lines { max-height: none; }
   .entry-bank-preview { align-items: flex-start; flex-wrap: wrap; }
   .entry-bank-preview small { width: 100%; margin-left: 0; }
   .entry-modal .modal-actions { position: sticky; bottom: calc(-28px - env(safe-area-inset-bottom)); z-index: 2; margin: 8px -18px calc(-28px - env(safe-area-inset-bottom)); border-top: 1px solid var(--line); padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 24px rgba(27, 55, 84, .08); }
