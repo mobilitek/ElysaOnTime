@@ -432,8 +432,9 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .journal-pagination label { display: flex; align-items: center; gap: 8px; margin-right: auto; }
 .journal-pagination select, .journal-pagination button { border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; background: white; }
 .entry-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; }
-.entry-modal > .modal-heading { margin-bottom: 18px; }
+.entry-modal > .modal-heading { margin-bottom: 12px; }
 .entry-modal form { display: grid; gap: 12px; }
+.entry-modal form > label { margin: 0; }
 .entry-modal .modal-actions { margin-top: 16px; }
 .entry-modal textarea { resize: vertical; min-height: 180px; }
 .entry-description-field { display: grid; gap: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
@@ -725,6 +726,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
   .entry-modal { width: 100%; max-width: none; min-height: 100dvh; max-height: 100dvh; overflow-y: auto; border-radius: 0; padding: 18px 18px calc(28px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
   .entry-modal .modal-heading { position: sticky; top: -18px; z-index: 2; margin: -18px -18px 18px; border-bottom: 1px solid var(--line); padding: 14px 18px; background: rgba(255, 255, 255, .97); }
   .entry-modal .close-button { width: 44px; height: 44px; }
+  .entry-modal form > label { margin: 22px 0 9px; }
   .entry-assignment-grid,
   .entry-time-grid { grid-template-columns: 1fr; }
   .entry-modal textarea { min-height: 126px; }
