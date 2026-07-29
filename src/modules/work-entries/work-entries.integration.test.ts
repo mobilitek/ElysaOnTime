@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 
 const run = process.env.RUN_INTEGRATION_TESTS === '1';
 const email = `entries-${crypto.randomUUID()}@example.com`;
-let userId = ''; let clientId = ''; let projectId = ''; let cookie = ''; let entryId = '';
+let userId = ''; let clientId = ''; let projectId = ''; let reassignmentProjectId = ''; let cookie = ''; let entryId = '';
 
 const { createApp } = await import('../../app');
 const { database } = await import('../../database');
@@ -21,6 +21,7 @@ describe.skipIf(!run)('work entries integration', () => {
     const user = await createUser({ email, password: 'integration-password', firstName: 'Entry', lastName: 'Test' }); userId = user.id;
     clientId = (await createClient(userId, 'Journal client')).id;
     projectId = (await createProject(userId, { clientId, name: 'Journal project', hourlyRate: '89.00' })).id;
+    reassignmentProjectId = (await createProject(userId, { clientId, name: 'Reassignment project', hourlyRate: '100.00' })).id;
     const session = await authenticate(email, 'integration-password', false); if (!session) throw new Error('Expected session'); cookie = `ontime_session=${session.token}`;
   });
   afterAll(async () => { if (userId) { await database.delete(workEntries).where(eq(workEntries.userId, userId)); await database.delete(projects).where(eq(projects.clientId, clientId)); await database.delete(clients).where(eq(clients.userId, userId)); await database.delete(users).where(eq(users.id, userId)); } });
@@ -52,6 +53,7 @@ describe.skipIf(!run)('work entries integration', () => {
       { id: 'private', text: 'Internal investigation', depth: 2, includedInExport: false },
     ];
     const response = await request(`/api/work-entries/${entryId}`, 'PATCH', {
+      projectId,
       workDate: '2026-07-17',
       durationMinutes: 90,
       description: 'Ignored when a structured document is supplied',
@@ -64,6 +66,24 @@ describe.skipIf(!run)('work entries integration', () => {
         descriptionDocument,
       },
     });
+  });
+
+  test('reassigns an unbilled entry and adopts the target project rate', async () => {
+    const response = await request(`/api/work-entries/${entryId}`, 'PATCH', {
+      projectId: reassignmentProjectId,
+      workDate: '2026-07-17',
+      durationMinutes: 90,
+      description: 'Reassigned work',
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { entry: object }).toMatchObject({
+      entry: {
+        projectId: reassignmentProjectId,
+        hourlyRate: '100.00',
+        amount: '150.00',
+      },
+    });
+    projectId = reassignmentProjectId;
   });
 
   test('removes lines beginning with three hyphens from exported descriptions', () => {
@@ -81,6 +101,14 @@ describe.skipIf(!run)('work entries integration', () => {
 
   test('toggles billed and deleted state, and filters deleted entries', async () => {
     expect((await request('/api/work-entries/toggle-billed', 'POST', { ids: [entryId] })).status).toBe(200);
+    const reassignment = await request(`/api/work-entries/${entryId}`, 'PATCH', {
+      projectId: reassignmentProjectId === projectId ? (await createProject(userId, { clientId, name: 'Locked target', hourlyRate: '120.00' })).id : reassignmentProjectId,
+      workDate: '2026-07-17',
+      durationMinutes: 90,
+      description: 'Must remain assigned',
+    });
+    expect(reassignment.status).toBe(409);
+    expect(await reassignment.json()).toMatchObject({ error: 'BILLED_ENTRY_ASSIGNMENT_LOCKED' });
     expect((await request('/api/work-entries/toggle-deleted', 'POST', { ids: [entryId] })).status).toBe(200);
     const hidden = await request('/api/work-entries?from=2026-07-01&to=2026-07-31&includeDeleted=false&page=1&pageSize=50&sortBy=workDate&sortDirection=desc');
     expect(((await hidden.json()) as { entries: unknown[] }).entries).toHaveLength(0);
@@ -91,7 +119,7 @@ describe.skipIf(!run)('work entries integration', () => {
   test('duplicates Friday to Monday and preserves historical rate', async () => {
     const response = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(response.status).toBe(201);
-    expect(((await response.json()) as { entry: object }).entry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '89.00', amount: '133.50', isBilled: false, isDeleted: false });
+    expect(((await response.json()) as { entry: object }).entry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '100.00', amount: '150.00', isBilled: false, isDeleted: false });
 
     const occupied = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(occupied.status).toBe(409);

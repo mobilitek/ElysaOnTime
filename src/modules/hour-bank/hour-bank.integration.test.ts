@@ -123,6 +123,7 @@ describe.skipIf(!run)('hour bank integration', () => {
 
   test('resynchronizes a closed week when one of its entries changes', async () => {
     await updateEntry(userId, entryId, {
+      projectId,
       workDate: '2026-07-20',
       durationMinutes: 480,
       clientMinutes: 480,

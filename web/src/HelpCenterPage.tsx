@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.3.2';
+export const CURRENT_VERSION = '0.3.3';
 
 export const HELP_CONTENT = {
   fr: {
@@ -30,7 +30,7 @@ export const HELP_CONTENT = {
       ['Bien démarrer', 'Créez votre compte pour profiter d’un essai gratuit de 7 jours. Ajoutez ensuite un client actif, puis au moins un projet actif avec son taux horaire. Vous pourrez alors consigner vos premières heures.'],
       ['Journal de travail', 'Utilisez les périodes Jour, Semaine, Mois, Année ou Personnalisé. Les flèches déplacent la période courante. Les filtres Client et Projet changent uniquement la liste affichée; ils ne sont pas obligatoires pour créer une entrée.'],
       ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date et les heures. Le contenu du champ d’heures est sélectionné automatiquement : 8 devient 08:00 et 730 devient 07:30 à la sortie du champ ou lors de la validation. Organisez ensuite la description librement, ligne par ligne et avec autant de niveaux d’indentation que nécessaire. Vous pouvez coller un texte multiligne ou copier le contenu complet d’une ancienne journée. Chaque ligne peut être destinée au client ou demeurer interne. Les heures utilisent des blocs de 15 minutes.'],
-      ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
+      ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. Une entrée non facturée peut être réaffectée à un autre client ou projet; une entrée facturée doit d’abord être retirée de la facturation. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
       ['Banque d’heures', 'Activez la banque dans la fiche du projet, choisissez un solde initial et les limites quotidiennes et hebdomadaires propres à ce contrat. Dans une entrée, Heures travaillées représente le temps réel et Heures facturables le temps porté au projet; la différence alimente ou utilise la banque.'],
       ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Dans une fiche projet, le taux peut être révélé temporairement avec le bouton prévu à cet effet. Votre choix est mémorisé dans le navigateur.'],
       ['Export Excel', 'L’export reprend la période et les filtres affichés. Il produit le format destiné au client, sans la colonne Facturé, et inclut seulement les lignes marquées Client. Pour les anciennes descriptions, les lignes commençant par trois traits d’union demeurent internes. Un aperçu permet de vérifier le résultat. Si un projet actif du client utilise une banque d’heures, un rappel vous demande de confirmer ou de réviser les semaines concernées avant de poursuivre.'],
@@ -48,6 +48,15 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.3.3',
+        date: '29 juillet 2026',
+        changes: [
+          'Réaffectation d’une entrée non facturée à un autre client ou projet.',
+          'Application automatique du taux, des limites et de la banque d’heures du projet cible.',
+          'Protection des entrées facturées et confirmation lorsque les heures facturables changent.',
+        ],
+      },
       {
         version: '0.3.2',
         date: '29 juillet 2026',
@@ -119,7 +128,7 @@ export const HELP_CONTENT = {
       ['Getting started', 'Create your account to receive a free 7-day trial. Next, add an active client and at least one active project with its hourly rate. You can then record your first hours.'],
       ['Work log', 'Use Day, Week, Month, Year or Custom periods. The arrows move the current period. Client and Project filters only change the displayed list; they are not required to create an entry.'],
       ['Creating an entry', 'Select New entry, choose the client and project, then enter the date and hours. The current hour value is selected automatically: 8 becomes 08:00 and 730 becomes 07:30 when leaving the field or saving. Organize the description freely, one line at a time and with as many indentation levels as needed. You can paste multiline text or copy the complete contents of an older day. Each line can be client-facing or remain internal. Hours use 15-minute increments.'],
-      ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. Entries are deleted individually and can be restored with Show deleted.'],
+      ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. An unbilled entry can be reassigned to another client or project; a billed entry must first be removed from billing. Entries are deleted individually and can be restored with Show deleted.'],
       ['Hour bank', 'Enable the bank in the project record and choose the opening balance and daily and weekly limits for that contract. Worked hours is the actual time and Billable hours is the time assigned to the project; their difference adds to or uses the bank.'],
       ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. In a project record, the rate can be revealed temporarily with its dedicated button. Your choice is remembered by the browser.'],
       ['Excel export', 'The export follows the displayed period and filters. It produces the client-facing format without the Billed column and includes only lines marked Client. In older descriptions, lines beginning with three hyphens remain internal. A preview lets you verify the result. If an active project for the client uses an hour bank, a reminder asks you to confirm or review the affected weeks before continuing.'],
@@ -137,6 +146,15 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.3.3',
+        date: 'July 29, 2026',
+        changes: [
+          'Reassign an unbilled entry to another client or project.',
+          'Automatically apply the target project’s rate, limits and hour-bank rules.',
+          'Protect billed entries and request confirmation when billable hours change.',
+        ],
+      },
       {
         version: '0.3.2',
         date: 'July 29, 2026',

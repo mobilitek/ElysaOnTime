@@ -13,6 +13,7 @@ export class ProjectUnavailableError extends Error {}
 export class InvalidDurationError extends Error {}
 export class InvalidDescriptionError extends Error {}
 export class ClientTimeLimitError extends Error {}
+export class BilledEntryAssignmentError extends Error {}
 export class DuplicateTargetOccupiedError extends Error {
   constructor(public readonly targetDate: string) {
     super('The duplicate target date already contains an entry');
@@ -186,7 +187,7 @@ export const createEntry = async (userId: string, input: EntryInput) => {
   return entry;
 };
 
-export const updateEntry = async (userId: string, id: string, input: Omit<EntryInput, 'projectId'>) => {
+export const updateEntry = async (userId: string, id: string, input: EntryInput) => {
   const descriptionDocument = normalizeDescriptionDocument(input.descriptionDocument);
   const description = descriptionDocument
     ? descriptionDocumentText(descriptionDocument)
@@ -195,25 +196,33 @@ export const updateEntry = async (userId: string, id: string, input: Omit<EntryI
   const [current] = await database.select({ entry: workEntries, project: projects, client: clients }).from(workEntries).innerJoin(projects, eq(workEntries.projectId, projects.id)).innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(workEntries.id, id), eq(workEntries.userId, userId), eq(clients.userId, userId), eq(clients.isActive, true), eq(projects.isActive, true))).limit(1);
   if (!current) throw new EntryNotFoundError('Entry not found');
-  const clientMinutes = await clientTimeFor(userId, {
-    project: current.project,
-    client: current.client,
-  }, input, id);
-  // Le projet et le taux historique ne changent pas pendant l'édition; seul le
-  // montant est recalculé à partir du taux déjà enregistré sur l'entrée.
+  const projectChanged = input.projectId !== current.entry.projectId;
+  if (projectChanged && current.entry.isBilled) {
+    throw new BilledEntryAssignmentError('A billed entry cannot change project');
+  }
+  const target = projectChanged
+    ? await visibleProject(userId, input.projectId)
+    : { project: current.project, client: current.client };
+  const clientMinutes = await clientTimeFor(userId, target, input, id);
+  // Une réaffectation adopte le taux courant et les règles du projet cible.
+  // Sans réaffectation, le taux historique de l'entrée demeure inchangé.
+  const hourlyRate = projectChanged ? target.project.hourlyRate : current.entry.hourlyRate;
   const [entry] = await database.update(workEntries).set({
+    projectId: input.projectId,
     workDate: input.workDate,
     durationMinutes: input.durationMinutes,
     clientMinutes,
     description,
     descriptionDocument,
-    amount: amountFor(clientMinutes, current.entry.hourlyRate),
+    hourlyRate,
+    amount: amountFor(clientMinutes, hourlyRate),
     updatedAt: new Date(),
   }).where(eq(workEntries.id, id)).returning();
-  // Une modification de date peut toucher l'ancienne semaine et la nouvelle.
+  // Une modification de date ou de projet peut toucher les anciennes et
+  // nouvelles semaines de banque d'heures.
   await synchronizeClosedHourBankWeek(userId, current.project.id, current.entry.workDate);
-  if (input.workDate !== current.entry.workDate) {
-    await synchronizeClosedHourBankWeek(userId, current.project.id, input.workDate);
+  if (projectChanged || input.workDate !== current.entry.workDate) {
+    await synchronizeClosedHourBankWeek(userId, target.project.id, input.workDate);
   }
   return entry;
 };

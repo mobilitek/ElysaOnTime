@@ -477,6 +477,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .entry-bank-preview span { color: var(--ink-soft); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
 .entry-bank-preview strong { font-size: 1.1rem; }
 .entry-bank-preview small { margin-left: auto; color: var(--ink-soft); }
+.entry-assignment-note { margin: -8px 0 0; color: var(--ink-soft); font-size: .82rem; }
 .import-modal { width: min(760px, calc(100vw - 32px)); }
 .import-warning { margin: 0 0 20px; border-left: 4px solid #d97706; padding: 12px 14px; background: #fff8eb; color: #7a4710; line-height: 1.5; }
 .import-file, .import-confirmation { display: grid; gap: 8px; margin-bottom: 16px; color: var(--ink-soft); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
