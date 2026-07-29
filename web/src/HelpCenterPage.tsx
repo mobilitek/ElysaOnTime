@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.3.1';
+export const CURRENT_VERSION = '0.3.2';
 
 export const HELP_CONTENT = {
   fr: {
@@ -48,6 +48,14 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.3.2',
+        date: '29 juillet 2026',
+        changes: [
+          'Bouton Agrandir/Réduire pour adapter la fenêtre d’édition du journal à l’espace disponible.',
+          'Préférence de taille mémorisée dans le navigateur.',
+        ],
+      },
       {
         version: '0.3.1',
         date: '29 juillet 2026',
@@ -129,6 +137,14 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.3.2',
+        date: 'July 29, 2026',
+        changes: [
+          'Expand/Restore control to adapt the work-log editor to the available screen space.',
+          'Editor size preference remembered by the browser.',
+        ],
+      },
       {
         version: '0.3.1',
         date: 'July 29, 2026',
