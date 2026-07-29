@@ -30,6 +30,22 @@ describe('work log weekday labels', () => {
 });
 
 describe('structured work log descriptions', () => {
+  test('keeps an internal line break inside the same indented item', () => {
+    const lines = [{
+      id: 'multiline',
+      text: 'Première partie\nContexte supplémentaire',
+      depth: 2,
+      includedInExport: true,
+    }];
+
+    expect(descriptionDocumentText(lines)).toBe(
+      '    - Première partie\n      Contexte supplémentaire',
+    );
+    expect(descriptionDocumentExportText(lines)).toBe(
+      '    - Première partie\n      Contexte supplémentaire',
+    );
+  });
+
   test('converts legacy hyphen indentation and preserves internal export rules', () => {
     const lines = parseLegacyDescription([
       '-SSA-0000',

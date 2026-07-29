@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.3.0';
+export const CURRENT_VERSION = '0.3.1';
 
 export const HELP_CONTENT = {
   fr: {
@@ -29,7 +29,7 @@ export const HELP_CONTENT = {
     manualSections: [
       ['Bien démarrer', 'Créez votre compte pour profiter d’un essai gratuit de 7 jours. Ajoutez ensuite un client actif, puis au moins un projet actif avec son taux horaire. Vous pourrez alors consigner vos premières heures.'],
       ['Journal de travail', 'Utilisez les périodes Jour, Semaine, Mois, Année ou Personnalisé. Les flèches déplacent la période courante. Les filtres Client et Projet changent uniquement la liste affichée; ils ne sont pas obligatoires pour créer une entrée.'],
-      ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date et les heures. Organisez ensuite la description librement, ligne par ligne et avec autant de niveaux d’indentation que nécessaire. Vous pouvez coller un texte multiligne ou copier le contenu complet d’une ancienne journée. Chaque ligne peut être destinée au client ou demeurer interne. Une valeur entière comme 4 peut être convertie en 04:00 après votre confirmation. Les heures utilisent des blocs de 15 minutes.'],
+      ['Créer une entrée', 'Cliquez sur Nouvelle entrée, choisissez le client et le projet, puis saisissez la date et les heures. Le contenu du champ d’heures est sélectionné automatiquement : 8 devient 08:00 et 730 devient 07:30 à la sortie du champ ou lors de la validation. Organisez ensuite la description librement, ligne par ligne et avec autant de niveaux d’indentation que nécessaire. Vous pouvez coller un texte multiligne ou copier le contenu complet d’une ancienne journée. Chaque ligne peut être destinée au client ou demeurer interne. Les heures utilisent des blocs de 15 minutes.'],
       ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
       ['Banque d’heures', 'Activez la banque dans la fiche du projet, choisissez un solde initial et les limites quotidiennes et hebdomadaires propres à ce contrat. Dans une entrée, Heures travaillées représente le temps réel et Heures facturables le temps porté au projet; la différence alimente ou utilise la banque.'],
       ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Dans une fiche projet, le taux peut être révélé temporairement avec le bouton prévu à cet effet. Votre choix est mémorisé dans le navigateur.'],
@@ -48,6 +48,17 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.3.1',
+        date: '29 juillet 2026',
+        changes: [
+          'Saisie progressive des heures avec sélection automatique et ajout du séparateur pendant la frappe.',
+          'Lignes internes mises en évidence sans raturer leur texte.',
+          'Zone de texte agrandie pendant la saisie pour conserver davantage de contexte.',
+          'Maj+Entrée insère un retour dans le même élément; ⌘/Ctrl+Entrée valide l’entrée.',
+          'Diagnostic PostgreSQL détaillé et sécuritaire au démarrage de l’API.',
+        ],
+      },
       {
         version: '0.3.0',
         date: '27 juillet 2026',
@@ -99,7 +110,7 @@ export const HELP_CONTENT = {
     manualSections: [
       ['Getting started', 'Create your account to receive a free 7-day trial. Next, add an active client and at least one active project with its hourly rate. You can then record your first hours.'],
       ['Work log', 'Use Day, Week, Month, Year or Custom periods. The arrows move the current period. Client and Project filters only change the displayed list; they are not required to create an entry.'],
-      ['Creating an entry', 'Select New entry, choose the client and project, then enter the date and hours. Organize the description freely, one line at a time and with as many indentation levels as needed. You can paste multiline text or copy the complete contents of an older day. Each line can be client-facing or remain internal. A whole number such as 4 can be converted to 04:00 after confirmation. Hours use 15-minute increments.'],
+      ['Creating an entry', 'Select New entry, choose the client and project, then enter the date and hours. The current hour value is selected automatically: 8 becomes 08:00 and 730 becomes 07:30 when leaving the field or saving. Organize the description freely, one line at a time and with as many indentation levels as needed. You can paste multiline text or copy the complete contents of an older day. Each line can be client-facing or remain internal. Hours use 15-minute increments.'],
       ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. Entries are deleted individually and can be restored with Show deleted.'],
       ['Hour bank', 'Enable the bank in the project record and choose the opening balance and daily and weekly limits for that contract. Worked hours is the actual time and Billable hours is the time assigned to the project; their difference adds to or uses the bank.'],
       ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. In a project record, the rate can be revealed temporarily with its dedicated button. Your choice is remembered by the browser.'],
@@ -118,6 +129,17 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.3.1',
+        date: 'July 29, 2026',
+        changes: [
+          'Progressive hour entry with automatic selection and separator insertion while typing.',
+          'Internal lines highlighted without striking through their text.',
+          'Expanded text area while typing to preserve more context.',
+          'Shift+Enter inserts a line break within the same item; ⌘/Ctrl+Enter saves the entry.',
+          'Detailed and secure PostgreSQL diagnostics when the API starts.',
+        ],
+      },
       {
         version: '0.3.0',
         date: 'July 27, 2026',

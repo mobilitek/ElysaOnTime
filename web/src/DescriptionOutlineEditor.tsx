@@ -28,7 +28,7 @@ export function DescriptionOutlineEditor({
   const focusSoon = (id: string) => {
     pendingFocus.current = id;
     requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>(`[data-outline-line="${id}"]`)?.focus();
+      document.querySelector<HTMLTextAreaElement>(`[data-outline-line="${id}"]`)?.focus();
       pendingFocus.current = null;
     });
   };
@@ -46,7 +46,7 @@ export function DescriptionOutlineEditor({
     onChange(next);
     focusSoon(next[Math.max(0, index - 1)]!.id);
   };
-  const keyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+  const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>, index: number) => {
     const line = lines[index]!;
     if (event.key === 'Tab') {
       event.preventDefault();
@@ -54,6 +54,12 @@ export function DescriptionOutlineEditor({
       return;
     }
     if (event.key === 'Enter') {
+      if (event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+        return;
+      }
+      if (event.shiftKey) return;
       event.preventDefault();
       insertAfter(index, line.depth);
       return;
@@ -80,7 +86,7 @@ export function DescriptionOutlineEditor({
     <div className="outline-editor-heading">
       <div>
         <strong>{fr ? 'Organisation libre' : 'Free-form outline'}</strong>
-        <small>{fr ? 'Entrée : nouvelle ligne · Tab : indenter · Collez aussi un bloc multiligne' : 'Enter: new line · Tab: indent · Multi-line paste supported'}</small>
+        <small>{fr ? 'Entrée : nouvel élément · Maj+Entrée : retour interne · ⌘/Ctrl+Entrée : valider · Tab : indenter' : 'Enter: new item · Shift+Enter: line break · ⌘/Ctrl+Enter: save · Tab: indent'}</small>
       </div>
       <div className="outline-heading-actions">
         <button type="button" className="outline-copy" onClick={() => void copyAll()}>
@@ -113,7 +119,8 @@ export function DescriptionOutlineEditor({
           {line.includedInExport ? (fr ? 'Client' : 'Client') : (fr ? 'Interne' : 'Internal')}
         </button>
         <span className="outline-branch" aria-hidden="true">└</span>
-        <input
+        <textarea
+          rows={1}
           data-outline-line={line.id}
           value={line.text}
           placeholder={fr ? 'Écrire un élément…' : 'Write an item…'}

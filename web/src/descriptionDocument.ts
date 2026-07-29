@@ -38,10 +38,19 @@ export const parseLegacyDescription = (description: string): DescriptionLine[] =
   return parsed.length ? parsed : [newDescriptionLine()];
 };
 
+const descriptionLineText = (line: DescriptionLine) => {
+  const indentation = '  '.repeat(line.depth);
+  const [first = '', ...continuations] = line.text.trim().split(/\r?\n/);
+  return [
+    `${indentation}- ${first}`,
+    ...continuations.map((text) => `${indentation}  ${text}`),
+  ].join('\n');
+};
+
 export const descriptionDocumentText = (lines: DescriptionLine[]) =>
   lines
     .filter((line) => line.text.trim())
-    .map((line) => `${'  '.repeat(line.depth)}- ${line.text.trim()}`)
+    .map(descriptionLineText)
     .join('\n');
 
 export const descriptionDocumentExportText = (lines: DescriptionLine[]) =>

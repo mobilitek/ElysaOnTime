@@ -449,15 +449,18 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .outline-legacy-note { margin: 0; border-bottom: 1px solid #ead9a9; padding: 9px 12px; background: #fff9e9; color: #74530b; font-size: 12px; line-height: 1.4; }
 .outline-lines { display: grid; gap: 5px; max-height: 390px; overflow: auto; padding: 10px; }
 .entry-modal .outline-lines { max-height: min(225px, 26vh); }
-.outline-line { display: grid; grid-template-columns: 88px 18px minmax(180px, 1fr) auto; align-items: center; gap: 5px; margin-left: min(calc(var(--outline-depth) * 24px), 60%); transition: margin-left 120ms ease, opacity 120ms ease; }
-.outline-line-internal { opacity: .7; }
-.outline-line-internal input { text-decoration: line-through; }
+.outline-line { display: grid; grid-template-columns: 88px 18px minmax(180px, 1fr) auto; align-items: start; gap: 5px; margin-left: min(calc(var(--outline-depth) * 24px), 60%); transition: margin-left 120ms ease; }
+.outline-line-internal { opacity: 1; }
+.outline-line-internal textarea { border-color: #d39b96 !important; background: #fff7f6 !important; box-shadow: inset 4px 0 0 #d96c63; color: #713b37; }
 .outline-export-toggle, .outline-line-actions button { min-width: 28px; height: 30px; border: 1px solid var(--line); border-radius: 7px; padding: 0 6px; background: white; color: var(--ink-soft); cursor: pointer; }
 .outline-export-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .outline-export-toggle[aria-pressed="true"] { border-color: #80b9b5; color: #08746f; background: #edf8f7; }
 .outline-export-toggle[aria-pressed="false"] { border-color: #d5a4a0; color: #9b2f28; background: #fff3f2; }
 .outline-branch { color: #9aabba; font-family: monospace; }
-.outline-line input { width: 100%; min-width: 0; height: 36px; padding: 7px 9px !important; font-size: 13px; }
+.entry-modal .outline-line textarea { width: 100%; min-width: 0; height: 36px; min-height: 36px; max-height: 120px; overflow: hidden; resize: none; padding: 7px 9px !important; font-size: 13px; line-height: 20px; transition: height 140ms ease, min-height 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.entry-modal .outline-line textarea:focus { height: 88px; min-height: 88px; overflow: auto; border-color: #258ca0; background: white; box-shadow: 0 0 0 3px rgba(37, 140, 160, .12); }
+.entry-modal .outline-line-internal textarea:focus { border-color: #c85f56; background: #fff7f6; box-shadow: inset 4px 0 0 #d96c63, 0 0 0 3px rgba(200, 95, 86, .12); }
+.outline-export-toggle, .outline-branch, .outline-line-actions { margin-top: 3px; }
 .outline-line-actions { display: flex; gap: 3px; opacity: .25; transition: opacity 120ms ease; }
 .outline-line:hover .outline-line-actions, .outline-line:focus-within .outline-line-actions { opacity: 1; }
 .outline-line-actions button:disabled { opacity: .3; cursor: default; }
