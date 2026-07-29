@@ -4,6 +4,7 @@ import {
   formatWeekday,
   hasEnabledHourBank,
   hourBankBalanceThroughDate,
+  isTodayWorkDate,
   possibleWorkingMinutes,
   shiftPeriod,
 } from './WorkLogPage';
@@ -26,6 +27,14 @@ describe('work log weekday labels', () => {
   test('shows the localized weekday for an entry date', () => {
     expect(formatWeekday('2026-07-29', 'fr')).toBe('Mercredi');
     expect(formatWeekday('2026-07-29', 'en')).toBe('Wednesday');
+  });
+});
+
+describe('today work-log highlighting', () => {
+  test('matches dates using the local calendar day', () => {
+    const now = new Date(2026, 6, 29, 23, 45);
+    expect(isTodayWorkDate('2026-07-29', now)).toBe(true);
+    expect(isTodayWorkDate('2026-07-28', now)).toBe(false);
   });
 });
 
