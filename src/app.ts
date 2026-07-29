@@ -14,6 +14,8 @@ import { dataImportRoutes } from './modules/data-import';
 import { hourBankRoutes } from './modules/hour-bank';
 import { projectRoutes } from './modules/projects';
 import { workEntryRoutes } from './modules/work-entries';
+import { auditRoutes } from './modules/audit';
+import { observability } from './modules/audit/observability';
 
 /**
  * Résout un chemin public vers le fichier produit par Vite.
@@ -79,6 +81,7 @@ export const createApp = () =>
     .onRequest(({ request }) =>
       config.forceHttps ? redirectHttpToHttps(request) : undefined,
     )
+    .use(observability)
     .get('/', ({ set }) =>
       config.isProduction
         ? serveFrontend('/', set)
@@ -144,6 +147,7 @@ export const createApp = () =>
     .use(hourBankRoutes)
     .use(projectRoutes)
     .use(workEntryRoutes)
+    .use(auditRoutes)
     .get('/*', ({ path, set }) => {
       // Une route API inexistante doit rester une erreur JSON et ne doit jamais
       // être confondue avec une route de l'application React.

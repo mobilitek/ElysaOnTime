@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.3.3';
+export const CURRENT_VERSION = '0.4.0';
 
 export const HELP_CONTENT = {
   fr: {
@@ -37,17 +37,29 @@ export const HELP_CONTENT = {
       ['Sauvegarde et restauration', 'Les commandes se trouvent dans la page Profil. Sauvegarder télécharge toutes vos données OnTime dans un fichier JSON, y compris la structure, l’indentation et le statut Client ou Interne des lignes du journal. Restaurer analyse d’abord le fichier, présente un résumé, puis remplace uniquement vos clients, projets et entrées après une confirmation explicite. Les anciennes sauvegardes sans structure demeurent compatibles.'],
       ['Clients et projets', 'Seuls les clients et projets actifs peuvent recevoir de nouvelles entrées. Un projet appartient obligatoirement à un client et porte son propre taux horaire. Les anciennes entrées conservent leur taux historique.'],
       ['Profil et souscription', 'Votre profil permet de modifier vos coordonnées et votre mot de passe. La section Souscription présente la période active et son historique. À l’échéance, vos données demeurent accessibles pour sauvegarde et renouvellement.'],
-      ['Administration', 'Les administrateurs peuvent créer et gérer les comptes, suspendre un accès et enregistrer les périodes de souscription. Chaque utilisateur demeure propriétaire de ses propres clients, projets et entrées.'],
+      ['Activité et diagnostic', 'La page Profil présente un historique paginé de vos opérations avec leur contexte et leurs changements, sans recopier le contenu de vos notes. Les administrateurs disposent aussi d’un journal technique filtrable qui relie une action à sa requête, son statut, sa durée et ses erreurs. Le mode confidentiel masque les valeurs financières dans ces détails.'],
+      ['Administration', 'Les administrateurs peuvent créer et gérer les comptes, suspendre un accès, enregistrer les périodes de souscription et consulter les activités. L’onglet Technique permet de filtrer les requêtes et d’ouvrir leur activité métier associée. Chaque utilisateur demeure propriétaire de ses propres clients, projets et entrées.'],
     ],
     pageHelp: {
       worklog: ['Journal de travail', ['Choisissez une période pour limiter les résultats.', 'Les filtres Client et Projet sont facultatifs.', 'Nouvelle entrée possède ses propres choix de client et de projet.', 'Sélectionnez des lignes uniquement pour inverser leur état Facturé.', 'Utilisez Afficher les supprimées pour restaurer une entrée.']],
       clients: ['Mes clients', ['Ajoutez une organisation avec un nom unique.', 'Désactiver un client masque aussi ses projets et ses entrées du journal.']],
       projects: ['Projets', ['Sélectionnez d’abord le client à administrer.', 'Chaque projet possède son propre taux et sa propre configuration de banque d’heures.', 'En mode confidentiel, utilisez le contrôle du champ Taux pour le révéler temporairement.', 'Un projet inactif ne peut plus recevoir d’entrée.', 'Une modification de taux ne change pas les entrées historiques déjà facturées.']],
-      profile: ['Profil', ['Modifiez ici votre nom, votre courriel et votre mot de passe.', 'Utilisez Sauvegarder pour télécharger toutes vos données ou Restaurer pour analyser puis rétablir une sauvegarde.', 'Consultez les dates et le type de votre souscription.', 'L’historique présente les essais, périodes gratuites, paiements et ajustements.', 'Utilisez Demander un renouvellement pour communiquer avec OnTime.']],
-      admin: ['Administration', ['Recherchez et modifiez les comptes utilisateurs.', 'Les statuts suspendu et désactivé bloquent la connexion.', 'Enregistrez les renouvellements avec leur type, période et statut de paiement.', 'Votre propre droit administrateur est protégé contre une suppression accidentelle.']],
+      profile: ['Profil', ['Modifiez ici votre nom, votre courriel et votre mot de passe.', 'Utilisez Sauvegarder pour télécharger toutes vos données ou Restaurer pour analyser puis rétablir une sauvegarde.', 'Consultez et filtrez votre activité récente; ouvrez une ligne pour voir ses changements.', 'Utilisez la pagination en haut ou en bas et choisissez le nombre d’activités par page.', 'Consultez les dates et le type de votre souscription.', 'L’historique présente les essais, périodes gratuites, paiements et ajustements.', 'Utilisez Demander un renouvellement pour communiquer avec OnTime.']],
+      admin: ['Administration', ['Recherchez et modifiez les comptes utilisateurs.', 'Les statuts suspendu et désactivé bloquent la connexion.', 'Enregistrez les renouvellements avec leur type, période et statut de paiement.', 'Consultez les activités utilisateur ou l’onglet Technique avec filtres et pagination.', 'Depuis une activité, ouvrez la requête technique correspondante pour faciliter le diagnostic.', 'Votre propre droit administrateur est protégé contre une suppression accidentelle.']],
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.0',
+        date: '29 juillet 2026',
+        changes: [
+          'Historique paginé des activités dans le Profil et l’Administration, regroupé par journée et enrichi avec le contexte métier.',
+          'Détails sécurisés des changements avant/après, y compris les copies et modifications de contenu sans exposer les notes.',
+          'Journal technique administrateur filtrable avec statut, durée, erreurs et conservation de 90 jours.',
+          'Corrélation directe entre une activité utilisateur et sa requête technique.',
+          'Mode confidentiel appliqué aux valeurs financières des journaux et présentation compacte adaptée aux petits écrans.',
+        ],
+      },
       {
         version: '0.3.3',
         date: '29 juillet 2026',
@@ -135,17 +147,29 @@ export const HELP_CONTENT = {
       ['Backup and restore', 'The controls are located on the Profile page. Backup downloads all your OnTime data in a JSON file, including journal line structure, indentation and Client or Internal status. Restore first analyzes the file and presents a summary, then replaces only your clients, projects and entries after explicit confirmation. Older backups without structured lines remain compatible.'],
       ['Clients and projects', 'Only active clients and projects can receive new entries. A project must belong to a client and has its own hourly rate. Previous entries keep their historical rate.'],
       ['Profile and subscription', 'Your profile lets you change your details and password. Subscription shows the active period and its history. At expiry, your data remains available for backup and renewal.'],
-      ['Administration', 'Administrators can create and manage accounts, suspend access and record subscription periods. Each user remains the owner of their own clients, projects and entries.'],
+      ['Activity and diagnostics', 'Profile provides a paginated history of your operations with their context and changes, without copying the contents of your notes. Administrators also have a filterable technical log linking an action to its request, status, duration and errors. Confidential mode masks financial values in these details.'],
+      ['Administration', 'Administrators can create and manage accounts, suspend access, record subscription periods and review activity. The Technical tab filters requests and opens their associated business activity. Each user remains the owner of their own clients, projects and entries.'],
     ],
     pageHelp: {
       worklog: ['Work log', ['Choose a period to narrow the results.', 'Client and Project filters are optional.', 'New entry has its own client and project choices.', 'Select rows only to toggle their Billed status.', 'Use Show deleted to restore an entry.']],
       clients: ['My clients', ['Add an organization with a unique name.', 'Disabling a client also hides its projects and entries from the log.']],
       projects: ['Projects', ['First select the client you want to manage.', 'Each project has its own rate and hour-bank settings.', 'In confidential mode, use the control in the Rate field to reveal it temporarily.', 'An inactive project cannot receive new entries.', 'A rate change does not alter historical billed entries.']],
-      profile: ['Profile', ['Change your name, email and password here.', 'Use Backup to download all your data or Restore to analyze and then recover a backup.', 'Review the dates and type of your subscription.', 'History shows trials, free periods, payments and adjustments.', 'Use Request renewal to contact OnTime.']],
-      admin: ['Administration', ['Search for and edit user accounts.', 'Suspended and disabled statuses prevent sign-in.', 'Record renewals with their type, period and payment status.', 'Your own administrator permission is protected from accidental removal.']],
+      profile: ['Profile', ['Change your name, email and password here.', 'Use Backup to download all your data or Restore to analyze and then recover a backup.', 'Review and filter your recent activity; open a row to see its changes.', 'Use pagination at the top or bottom and choose the number of activities per page.', 'Review the dates and type of your subscription.', 'History shows trials, free periods, payments and adjustments.', 'Use Request renewal to contact OnTime.']],
+      admin: ['Administration', ['Search for and edit user accounts.', 'Suspended and disabled statuses prevent sign-in.', 'Record renewals with their type, period and payment status.', 'Review user activity or the Technical tab with filters and pagination.', 'Open the matching technical request directly from an activity for diagnostics.', 'Your own administrator permission is protected from accidental removal.']],
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.0',
+        date: 'July 29, 2026',
+        changes: [
+          'Paginated activity history in Profile and Administration, grouped by day and enriched with business context.',
+          'Secure before-and-after change details, including copies and content edits without exposing notes.',
+          'Filterable administrator technical log with status, duration, errors and 90-day retention.',
+          'Direct correlation between user activity and its technical request.',
+          'Confidential mode applied to financial log values and a compact layout designed for smaller screens.',
+        ],
+      },
       {
         version: '0.3.3',
         date: 'July 29, 2026',

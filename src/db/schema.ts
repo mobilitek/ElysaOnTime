@@ -290,6 +290,55 @@ export const hourBankDays = pgTable(
   ],
 );
 
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorUserId: uuid('actor_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    action: varchar('action', { length: 100 }).notNull(),
+    category: varchar('category', { length: 50 }).notNull(),
+    entityType: varchar('entity_type', { length: 50 }),
+    entityId: varchar('entity_id', { length: 200 }),
+    requestId: uuid('request_id').notNull(),
+    metadata: jsonb('metadata').$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('audit_events_actor_created_idx').on(table.actorUserId, table.createdAt),
+    index('audit_events_category_created_idx').on(table.category, table.createdAt),
+    index('audit_events_request_idx').on(table.requestId),
+  ],
+);
+
+export const technicalLogs = pgTable(
+  'technical_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requestId: uuid('request_id').notNull(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    level: varchar('level', { length: 20 }).notNull(),
+    method: varchar('method', { length: 10 }).notNull(),
+    path: varchar('path', { length: 500 }).notNull(),
+    status: integer('status').notNull(),
+    durationMs: numeric('duration_ms', { precision: 12, scale: 2 }).notNull(),
+    errorCode: varchar('error_code', { length: 100 }),
+    errorName: varchar('error_name', { length: 200 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('technical_logs_created_idx').on(table.createdAt),
+    index('technical_logs_level_created_idx').on(table.level, table.createdAt),
+    index('technical_logs_status_created_idx').on(table.status, table.createdAt),
+    index('technical_logs_request_idx').on(table.requestId),
+    index('technical_logs_user_created_idx').on(table.userId, table.createdAt),
+    check('technical_logs_level_valid', sql`${table.level} in ('info', 'warning', 'error')`),
+  ],
+);
+
 // Ces relations décrivent la navigation Drizzle; les clés étrangères ci-dessus
 // demeurent la source réelle d'intégrité dans PostgreSQL.
 export const usersRelations = relations(users, ({ many }) => ({
@@ -300,6 +349,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   hourBankClosures: many(hourBankClosures),
   subscriptions: many(userSubscriptions, { relationName: 'subscriptionOwner' }),
   subscriptionsCreated: many(userSubscriptions, { relationName: 'subscriptionCreator' }),
+  auditEvents: many(auditEvents),
+  technicalLogs: many(technicalLogs),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({

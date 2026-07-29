@@ -83,6 +83,23 @@ describe.skipIf(!run)('work entries integration', () => {
         amount: '150.00',
       },
     });
+    const activity = await request('/api/audit/mine?category=journal&page=1&pageSize=25');
+    expect(activity.status).toBe(200);
+    const audit = (await activity.json()) as {
+      events: Array<{ action: string; metadata: Record<string, unknown> }>;
+    };
+    expect(audit.events[0]).toMatchObject({
+      action: 'journal.updated',
+      metadata: {
+        before_project: 'Journal project',
+        after_project: 'Reassignment project',
+        before_hourlyRate: '89.00',
+        after_hourlyRate: '100.00',
+        before_amount: '133.50',
+        after_amount: '150.00',
+        contentChanged: true,
+      },
+    });
     projectId = reassignmentProjectId;
   });
 
@@ -119,7 +136,21 @@ describe.skipIf(!run)('work entries integration', () => {
   test('duplicates Friday to Monday and preserves historical rate', async () => {
     const response = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(response.status).toBe(201);
-    expect(((await response.json()) as { entry: object }).entry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '100.00', amount: '150.00', isBilled: false, isDeleted: false });
+    const duplicatedEntry = ((await response.json()) as { entry: { id: string } }).entry;
+    expect(duplicatedEntry).toMatchObject({ workDate: '2026-07-20', hourlyRate: '100.00', amount: '150.00', isBilled: false, isDeleted: false });
+    const activity = await request('/api/audit/mine?category=journal&page=1&pageSize=5');
+    const latestAudit = ((await activity.json()) as {
+      events: Array<{ action: string; entityId: string; metadata: Record<string, unknown> }>;
+    }).events[0];
+    expect(latestAudit).toMatchObject({
+      action: 'journal.duplicated',
+      entityId: duplicatedEntry.id,
+      metadata: {
+        workDate: '2026-07-20',
+        client: 'Journal client',
+        project: 'Reassignment project',
+      },
+    });
 
     const occupied = await request(`/api/work-entries/${entryId}/duplicate`, 'POST', { nextWorkday: true });
     expect(occupied.status).toBe(409);

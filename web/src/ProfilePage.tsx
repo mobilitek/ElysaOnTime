@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { BackupProfileCard } from './BackupProfileCard';
 import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
+import { ActivityPanel } from './ActivityPanel';
 
 type Language = 'fr' | 'en';
 type User = {
@@ -160,6 +161,7 @@ export function ProfilePage({
           </form></section>
         </div>
         <BackupProfileCard language={language} />
+        <ActivityPanel language={language} />
         <section className="profile-card subscription-profile-card">
           <div className="subscription-profile-heading"><div><p className="eyebrow">{text.subscription}</p><h2>{user.accessLevel === 'subscription_expired' ? text.expired : user.subscriptionEndsOn ? text.active : text.unlimited}</h2></div><a className="secondary-button" href={`mailto:ontime@mobilitek.com?subject=${renewalSubject}`}>{text.renew}</a></div>
           <div className="subscription-current"><div><span>{text.starts}</span><strong>{displayDate(user.subscriptionStartedOn, language)}</strong></div><div><span>{text.ends}</span><strong>{user.subscriptionEndsOn ? displayDate(user.subscriptionEndsOn, language) : text.unlimited}</strong></div></div>
