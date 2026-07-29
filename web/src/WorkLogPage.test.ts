@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   firstDescriptionLine,
+  formatWeekday,
   hasEnabledHourBank,
   hourBankBalanceThroughDate,
   possibleWorkingMinutes,
@@ -18,6 +19,13 @@ describe('work log description preview', () => {
     expect(firstDescriptionLine('Résumé du travail\n- Première tâche\n- Deuxième tâche')).toBe('Résumé du travail');
     expect(firstDescriptionLine('Une seule ligne')).toBe('Une seule ligne');
     expect(firstDescriptionLine('Windows\r\nDeuxième ligne')).toBe('Windows');
+  });
+});
+
+describe('work log weekday labels', () => {
+  test('shows the localized weekday for an entry date', () => {
+    expect(formatWeekday('2026-07-29', 'fr')).toBe('Mercredi');
+    expect(formatWeekday('2026-07-29', 'en')).toBe('Wednesday');
   });
 });
 
