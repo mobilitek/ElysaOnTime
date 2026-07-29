@@ -27,6 +27,7 @@ const copy = {
     logout: 'Se déconnecter', productTitle: 'Chaque heure compte.',
     productText: 'Consignez votre travail, suivez vos projets et préparez vos exports sans perdre le fil.',
     createAccount: 'Créer un compte', haveAccount: 'J’ai déjà un compte', registerTitle: 'Créer votre compte', registerSubtitle: 'Commencez votre journal de travail OnTime.', trialNotice: 'Votre compte comprend un essai gratuit de 7 jours, sans carte de crédit ni renouvellement automatique.', firstName: 'Prénom', lastName: 'Nom', confirmPassword: 'Confirmer le mot de passe', register: 'Créer le compte', registering: 'Création…', mismatch: 'Les mots de passe ne correspondent pas.', emailExists: 'Cette adresse courriel est déjà utilisée.', accountCreated: 'Compte créé. Votre essai gratuit de 7 jours est actif; consultez votre courriel pour connaître la période.',
+    passwordLength: 'Au moins 12 caractères', passwordMatch: 'Les mots de passe correspondent', showPassword: 'Afficher', hidePassword: 'Masquer',
     forgotTitle: 'Mot de passe oublié', forgotSubtitle: 'Entrez votre adresse courriel pour recevoir un lien sécurisé.', sendLink: 'Envoyer le lien', sendingLink: 'Envoi…', resetSent: 'Si un compte correspond à cette adresse, un courriel vient d’être envoyé.', backToLogin: 'Retour à la connexion',
     resetTitle: 'Nouveau mot de passe', resetSubtitle: 'Choisissez un nouveau mot de passe pour votre compte.', newPassword: 'Nouveau mot de passe', resetPassword: 'Modifier le mot de passe', resettingPassword: 'Modification…', resetComplete: 'Mot de passe modifié. Vous pouvez maintenant vous connecter.', invalidReset: 'Ce lien est invalide ou expiré. Demandez un nouveau lien.',
   },
@@ -43,6 +44,7 @@ const copy = {
     continue: 'Continue to work log', logout: 'Sign out', productTitle: 'Every hour matters.',
     productText: 'Log your work, follow your projects and prepare exports without losing track.',
     createAccount: 'Create an account', haveAccount: 'I already have an account', registerTitle: 'Create your account', registerSubtitle: 'Start your OnTime work log.', trialNotice: 'Your account includes a free 7-day trial, with no credit card and no automatic renewal.', firstName: 'First name', lastName: 'Last name', confirmPassword: 'Confirm password', register: 'Create account', registering: 'Creating…', mismatch: 'Passwords do not match.', emailExists: 'This email address is already in use.', accountCreated: 'Account created. Your free 7-day trial is active; check your email for the trial period.',
+    passwordLength: 'At least 12 characters', passwordMatch: 'Passwords match', showPassword: 'Show', hidePassword: 'Hide',
     forgotTitle: 'Forgot password', forgotSubtitle: 'Enter your email address to receive a secure link.', sendLink: 'Send link', sendingLink: 'Sending…', resetSent: 'If an account matches this address, an email has just been sent.', backToLogin: 'Back to sign in',
     resetTitle: 'New password', resetSubtitle: 'Choose a new password for your account.', newPassword: 'New password', resetPassword: 'Change password', resettingPassword: 'Changing…', resetComplete: 'Password changed. You can now sign in.', invalidReset: 'This link is invalid or expired. Request a new link.',
   },
@@ -65,6 +67,7 @@ export function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -217,7 +220,7 @@ export function App() {
     finally { setIsLoading(false); }
   };
 
-  const toggleRegistration = () => { setIsRegistering((value) => !value); setError(null); setNotice(null); setPassword(''); setPasswordConfirmation(''); };
+  const toggleRegistration = () => { setIsRegistering((value) => !value); setError(null); setNotice(null); setPassword(''); setPasswordConfirmation(''); setShowPassword(false); };
   const showForgotPassword = () => { setIsForgotPassword(true); setIsRegistering(false); setError(null); setNotice(null); setPassword(''); };
   const showLogin = () => {
     if (resetToken) window.history.replaceState({}, '', window.location.pathname);
@@ -289,14 +292,14 @@ export function App() {
                     {isRegistering ? <div className="registration-names"><label>{text.firstName}<input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={100} required disabled={isLoading} /></label><label>{text.lastName}<input value={lastName} onChange={(event) => setLastName(event.target.value)} maxLength={100} required disabled={isLoading} /></label></div> : null}
                     {!resetToken ? <><label htmlFor="email">{text.email}</label><input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={text.emailPlaceholder} autoComplete="email" required disabled={isLoading} /></> : null}
                     {!isForgotPassword ? <><label htmlFor="password">{resetToken ? text.newPassword : text.password}</label>
-                    <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete={isRegistering || resetToken ? 'new-password' : 'current-password'} minLength={isRegistering || resetToken ? 12 : 1} required disabled={isLoading} /></> : null}
-                    {isRegistering || resetToken ? <><label htmlFor="password-confirmation">{text.confirmPassword}</label><input id="password-confirmation" type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={12} required disabled={isLoading} /></> : !isForgotPassword ? <div className="form-options">
+                    <div className="password-input-wrap"><input id="password" name="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={text.passwordPlaceholder} autoComplete={isRegistering || resetToken ? 'new-password' : 'current-password'} minLength={isRegistering || resetToken ? 12 : 1} required disabled={isLoading} /><button type="button" className="password-visibility" onClick={() => setShowPassword((current) => !current)} aria-pressed={showPassword} disabled={isLoading}>{showPassword ? text.hidePassword : text.showPassword}</button></div></> : null}
+                    {isRegistering || resetToken ? <><label htmlFor="password-confirmation">{text.confirmPassword}</label><div className="password-input-wrap"><input id="password-confirmation" type={showPassword ? 'text' : 'password'} value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={12} required disabled={isLoading} /><button type="button" className="password-visibility" onClick={() => setShowPassword((current) => !current)} aria-pressed={showPassword} disabled={isLoading}>{showPassword ? text.hidePassword : text.showPassword}</button></div><ul className="password-requirements" aria-live="polite"><li className={password.length >= 12 ? 'valid' : ''}><span aria-hidden="true">{password.length >= 12 ? '✓' : '○'}</span>{text.passwordLength}</li><li className={passwordConfirmation.length > 0 && password === passwordConfirmation ? 'valid' : passwordConfirmation.length > 0 ? 'invalid' : ''}><span aria-hidden="true">{passwordConfirmation.length > 0 && password === passwordConfirmation ? '✓' : '○'}</span>{text.passwordMatch}</li></ul></> : !isForgotPassword ? <div className="form-options">
                       <label className="checkbox-label"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} disabled={isLoading} /><span className="custom-checkbox" aria-hidden="true" />{text.remember}</label>
                       <button className="text-button" type="button" onClick={showForgotPassword}>{text.forgot}</button>
                     </div> : null}
                     {error ? <p className="error-message" role="alert">{error}</p> : null}
                     {notice ? <p className="success-message" role="status">{notice}</p> : null}
-                    <button className="primary-button" type="submit" disabled={isLoading || (!resetToken && !email) || (!isForgotPassword && password.length < (isRegistering || resetToken ? 12 : 1)) || ((isRegistering || Boolean(resetToken)) && passwordConfirmation.length < 12) || (isRegistering && (!firstName.trim() || !lastName.trim()))}>{isLoading ? (resetToken ? text.resettingPassword : isForgotPassword ? text.sendingLink : isRegistering ? text.registering : text.loading) : (resetToken ? text.resetPassword : isForgotPassword ? text.sendLink : isRegistering ? text.register : text.login)}</button>
+                    <button className="primary-button" type="submit" disabled={isLoading || (!resetToken && !email) || (!isForgotPassword && password.length < (isRegistering || resetToken ? 12 : 1)) || ((isRegistering || Boolean(resetToken)) && (passwordConfirmation.length < 12 || password !== passwordConfirmation)) || (isRegistering && (!firstName.trim() || !lastName.trim()))}>{isLoading ? (resetToken ? text.resettingPassword : isForgotPassword ? text.sendingLink : isRegistering ? text.registering : text.loading) : (resetToken ? text.resetPassword : isForgotPassword ? text.sendLink : isRegistering ? text.register : text.login)}</button>
                   </form>
                   <button className="account-switch" type="button" onClick={isForgotPassword || Boolean(resetToken) ? showLogin : toggleRegistration}>{isForgotPassword || resetToken ? text.backToLogin : isRegistering ? text.haveAccount : text.createAccount}</button>
                   <p className="security-note"><span aria-hidden="true">●</span> {text.secure}</p>

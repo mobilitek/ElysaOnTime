@@ -172,6 +172,20 @@ input[type="email"], input[type="password"] {
 }
 input::placeholder { color: #9ba9b8; }
 input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0; background: #fff; box-shadow: 0 0 0 4px rgba(37, 140, 160, 0.12); }
+.password-input-wrap { position: relative; }
+.password-input-wrap input[type="text"] { width: 100%; height: 54px; border: 1px solid #d4dfe8; border-radius: 12px; outline: none; color: #15253b; background: #fbfdff; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.password-input-wrap input { padding-right: 82px; }
+.password-input-wrap input:focus { border-color: #258ca0; background: #fff; box-shadow: 0 0 0 4px rgba(37, 140, 160, 0.12); }
+.password-visibility { position: absolute; top: 50%; right: 10px; min-width: 58px; border: 0; border-radius: 7px; padding: 7px 8px; color: #18788a; background: #edf6f7; cursor: pointer; font-size: .75rem; font-weight: 800; transform: translateY(-50%); }
+.password-visibility:focus-visible { outline: 3px solid rgba(37, 140, 160, .2); outline-offset: 2px; }
+.password-visibility:disabled { cursor: default; opacity: .55; }
+.password-requirements { display: grid; gap: 7px; margin: 12px 0 22px; padding: 0; color: #718195; font-size: .8rem; list-style: none; }
+.password-requirements li { display: flex; align-items: center; gap: 8px; }
+.password-requirements li span { display: grid; width: 18px; height: 18px; place-items: center; border: 1px solid #c8d3dc; border-radius: 50%; font-size: .68rem; font-weight: 900; }
+.password-requirements li.valid { color: #167a5a; }
+.password-requirements li.valid span { border-color: #51a98b; color: white; background: #27906d; }
+.password-requirements li.invalid { color: #a23943; }
+.password-requirements li.invalid span { border-color: #d9959b; }
 
 .form-options { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 22px 0 28px; }
 .checkbox-label { display: inline-flex; align-items: center; gap: 9px; color: #53657a; cursor: pointer; font-size: 0.87rem; }
@@ -592,6 +606,8 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: #258ca0;
 .warning-message { margin: 0; padding: 10px 12px; border: 1px solid #efd591; border-radius: 8px; background: #fff8df; color: #805d08; font-size: 13px; }
 .registration-names { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .registration-names label { margin: 0; }
+.registration-names input { width: 100%; height: 54px; margin-top: 9px; padding: 0 17px; border: 1px solid #d4dfe8; border-radius: 12px; outline: none; color: #15253b; background: #fbfdff; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.registration-names input:focus { border-color: #258ca0; background: #fff; box-shadow: 0 0 0 4px rgba(37, 140, 160, .12); }
 .account-switch { width: 100%; margin-top: 16px; border: 0; background: transparent; color: var(--blue); font-weight: 800; cursor: pointer; }
 
 /* Accès limité après l'échéance d'une souscription. */

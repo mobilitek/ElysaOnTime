@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.1';
+export const CURRENT_VERSION = '0.4.2';
 
 export const HELP_CONTENT = {
   fr: {
@@ -49,6 +49,15 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.2',
+        date: '29 juillet 2026',
+        changes: [
+          'Validation interactive du mot de passe lors de la création d’un compte et de sa réinitialisation.',
+          'Indication visible des 12 caractères requis et de la correspondance des mots de passe.',
+          'Commande Afficher ou Masquer et présentation uniforme des champs Prénom et Nom.',
+        ],
+      },
       {
         version: '0.4.1',
         date: '29 juillet 2026',
@@ -167,6 +176,15 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.2',
+        date: 'July 29, 2026',
+        changes: [
+          'Interactive password validation when creating an account or resetting its password.',
+          'Visible confirmation of the 12-character requirement and matching passwords.',
+          'Show or Hide control and consistent styling for the First name and Last name fields.',
+        ],
+      },
       {
         version: '0.4.1',
         date: 'July 29, 2026',
