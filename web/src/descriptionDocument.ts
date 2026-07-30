@@ -15,6 +15,13 @@ export const newDescriptionLine = (
   ...values,
 });
 
+export const newDescriptionLineAfter = (
+  source: Pick<DescriptionLine, 'depth' | 'includedInExport'>,
+): DescriptionLine => newDescriptionLine({
+  depth: source.depth,
+  includedInExport: source.includedInExport,
+});
+
 export const parseLegacyDescription = (description: string): DescriptionLine[] => {
   const parsed = description.split(/\r?\n/).flatMap((raw) => {
     if (!raw.trim()) return [];

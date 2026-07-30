@@ -3,6 +3,7 @@ import {
   descriptionDocumentText,
   descriptionDocumentExportText,
   newDescriptionLine,
+  newDescriptionLineAfter,
   replaceLineWithPastedText,
   type DescriptionLine,
 } from './descriptionDocument';
@@ -33,7 +34,10 @@ export function DescriptionOutlineEditor({
     });
   };
   const insertAfter = (index: number, depth = lines[index]?.depth ?? 0) => {
-    const line = newDescriptionLine({ depth });
+    const source = lines[index];
+    const line = source
+      ? newDescriptionLineAfter({ ...source, depth })
+      : newDescriptionLine({ depth });
     onChange([...lines.slice(0, index + 1), line, ...lines.slice(index + 1)]);
     focusSoon(line.id);
   };

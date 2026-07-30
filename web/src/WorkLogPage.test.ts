@@ -11,6 +11,7 @@ import {
 import {
   descriptionDocumentExportText,
   descriptionDocumentText,
+  newDescriptionLineAfter,
   parseLegacyDescription,
   replaceLineWithPastedText,
 } from './descriptionDocument';
@@ -39,6 +40,20 @@ describe('today work-log highlighting', () => {
 });
 
 describe('structured work log descriptions', () => {
+  test('inherits indentation and Client/Internal status for a new line', () => {
+    const clientLine = newDescriptionLineAfter({
+      depth: 3,
+      includedInExport: true,
+    });
+    const internalLine = newDescriptionLineAfter({
+      depth: 2,
+      includedInExport: false,
+    });
+
+    expect(clientLine).toMatchObject({ depth: 3, includedInExport: true });
+    expect(internalLine).toMatchObject({ depth: 2, includedInExport: false });
+  });
+
   test('keeps an internal line break inside the same indented item', () => {
     const lines = [{
       id: 'multiline',

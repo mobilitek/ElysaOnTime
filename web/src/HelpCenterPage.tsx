@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.2';
+export const CURRENT_VERSION = '0.4.3';
 
 export const HELP_CONTENT = {
   fr: {
@@ -49,6 +49,14 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.3',
+        date: '30 juillet 2026',
+        changes: [
+          'Les nouvelles lignes du journal créées avec Entrée conservent le niveau d’indentation et le statut Client ou Interne de la ligne source.',
+          'Le bouton Ajouter après applique le même héritage.',
+        ],
+      },
       {
         version: '0.4.2',
         date: '29 juillet 2026',
@@ -176,6 +184,14 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.3',
+        date: 'July 30, 2026',
+        changes: [
+          'New work-log lines created with Enter inherit the source line’s indentation and Client or Internal status.',
+          'The Add below button applies the same inheritance.',
+        ],
+      },
       {
         version: '0.4.2',
         date: 'July 29, 2026',
