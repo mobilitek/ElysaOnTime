@@ -4,6 +4,7 @@ import { database } from '../../database';
 import { clients, hourBankClosures, hourBankDays, projects, workEntries } from '../../db/schema';
 import {
   descriptionDocumentExportText,
+  parseLegacyDescription,
   type DescriptionLine,
 } from './description-document';
 
@@ -44,7 +45,7 @@ export const exportDescription = (description: string) => description
 export const exportEntryDescription = (
   description: string,
   document: DescriptionLine[] | null,
-) => document ? descriptionDocumentExportText(document) : exportDescription(description);
+) => descriptionDocumentExportText(document ?? parseLegacyDescription(description));
 
 const bankHours = (minutes: number) => {
   const hours = minutes / 60;

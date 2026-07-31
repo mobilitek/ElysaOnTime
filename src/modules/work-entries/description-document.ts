@@ -44,6 +44,24 @@ export const normalizeDescriptionDocument = (
   return lines;
 };
 
+export const parseLegacyDescription = (description: string): DescriptionLine[] =>
+  description.split(/\r?\n/).flatMap((raw, index) => {
+    if (!raw.trim()) return [];
+    const prefix = /^([ \t]*)(-+)\s*(.*)$/.exec(raw);
+    const whitespace = prefix?.[1] ?? (/^[ \t]*/.exec(raw)?.[0] ?? '');
+    const whitespaceDepth = [...whitespace]
+      .reduce((depth, character) => depth + (character === '\t' ? 1 : 0.5), 0);
+    const hyphens = prefix?.[2]?.length ?? 0;
+    const text = (prefix?.[3] ?? raw.trim()).trim();
+    if (!text) return [];
+    return [{
+      id: `legacy-${index}`,
+      text,
+      depth: Math.max(0, Math.floor(whitespaceDepth) + Math.max(0, hyphens - 1)),
+      includedInExport: hyphens < 3,
+    }];
+  });
+
 const descriptionLineText = (line: DescriptionLine) => {
   const indentation = '  '.repeat(line.depth);
   const [first = '', ...continuations] = line.text.split(/\r?\n/);

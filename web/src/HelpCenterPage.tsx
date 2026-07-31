@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.3';
+export const CURRENT_VERSION = '0.4.4';
 
 export const HELP_CONTENT = {
   fr: {
@@ -33,7 +33,7 @@ export const HELP_CONTENT = {
       ['Facturation et suppression', 'La case Facturé permet de suivre les entrées déjà remises au client. Plusieurs entrées sélectionnées peuvent être inversées ensemble. Une entrée non facturée peut être réaffectée à un autre client ou projet; une entrée facturée doit d’abord être retirée de la facturation. La suppression se fait individuellement et demeure réversible grâce à Afficher les supprimées.'],
       ['Banque d’heures', 'Activez la banque dans la fiche du projet, choisissez un solde initial et les limites quotidiennes et hebdomadaires propres à ce contrat. Dans une entrée, Heures travaillées représente le temps réel et Heures facturables le temps porté au projet; la différence alimente ou utilise la banque.'],
       ['Mode confidentiel', 'Le mode confidentiel est activé par défaut lors d’une première utilisation. Il masque les taux, les montants et toutes les informations financières à l’écran et dans les exports. Dans une fiche projet, le taux peut être révélé temporairement avec le bouton prévu à cet effet. Votre choix est mémorisé dans le navigateur.'],
-      ['Export Excel', 'L’export reprend la période et les filtres affichés. Il produit le format destiné au client, sans la colonne Facturé, et inclut seulement les lignes marquées Client. Pour les anciennes descriptions, les lignes commençant par trois traits d’union demeurent internes. Un aperçu permet de vérifier le résultat. Si un projet actif du client utilise une banque d’heures, un rappel vous demande de confirmer ou de réviser les semaines concernées avant de poursuivre.'],
+      ['Rapport Excel', 'Le rapport reprend la période et les filtres affichés. Il produit le format destiné au client, sans la colonne Facturé, et inclut seulement les lignes marquées Client. Les anciennes descriptions sont normalisées avec la même indentation que les entrées récentes; les lignes commençant par trois traits d’union demeurent internes. Un aperçu permet de vérifier le résultat. Si un projet actif du client utilise une banque d’heures, un rappel vous demande de confirmer ou de réviser les semaines concernées avant de poursuivre.'],
       ['Sauvegarde et restauration', 'Les commandes se trouvent dans la page Profil. Sauvegarder télécharge toutes vos données OnTime dans un fichier JSON, y compris la structure, l’indentation et le statut Client ou Interne des lignes du journal. Restaurer analyse d’abord le fichier, présente un résumé, puis remplace uniquement vos clients, projets et entrées après une confirmation explicite. Les anciennes sauvegardes sans structure demeurent compatibles.'],
       ['Clients et projets', 'Seuls les clients et projets actifs peuvent recevoir de nouvelles entrées. Un projet appartient obligatoirement à un client et porte son propre taux horaire. Les anciennes entrées conservent leur taux historique.'],
       ['Profil et souscription', 'Votre profil permet de modifier vos coordonnées et votre mot de passe. La section Souscription présente la période active et son historique. À l’échéance, vos données demeurent accessibles pour sauvegarde et renouvellement.'],
@@ -49,6 +49,15 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.4',
+        date: '31 juillet 2026',
+        changes: [
+          'Présentation uniforme des anciennes et nouvelles descriptions dans le rapport Excel.',
+          'Normalisation appliquée uniquement pendant le rapport, sans modifier les données historiques.',
+          'Bouton Exporter Excel renommé Rapport Excel.',
+        ],
+      },
       {
         version: '0.4.3',
         date: '30 juillet 2026',
@@ -168,7 +177,7 @@ export const HELP_CONTENT = {
       ['Billing and deletion', 'The Billed checkbox tracks entries already submitted to the client. Multiple selected entries can be toggled together. An unbilled entry can be reassigned to another client or project; a billed entry must first be removed from billing. Entries are deleted individually and can be restored with Show deleted.'],
       ['Hour bank', 'Enable the bank in the project record and choose the opening balance and daily and weekly limits for that contract. Worked hours is the actual time and Billable hours is the time assigned to the project; their difference adds to or uses the bank.'],
       ['Confidential mode', 'Confidential mode is enabled by default on first use. It hides rates, amounts and all financial information on screen and in exports. In a project record, the rate can be revealed temporarily with its dedicated button. Your choice is remembered by the browser.'],
-      ['Excel export', 'The export follows the displayed period and filters. It produces the client-facing format without the Billed column and includes only lines marked Client. In older descriptions, lines beginning with three hyphens remain internal. A preview lets you verify the result. If an active project for the client uses an hour bank, a reminder asks you to confirm or review the affected weeks before continuing.'],
+      ['Excel report', 'The report follows the displayed period and filters. It produces the client-facing format without the Billed column and includes only lines marked Client. Older descriptions are normalized with the same indentation as recent entries; lines beginning with three hyphens remain internal. A preview lets you verify the result. If an active project for the client uses an hour bank, a reminder asks you to confirm or review the affected weeks before continuing.'],
       ['Backup and restore', 'The controls are located on the Profile page. Backup downloads all your OnTime data in a JSON file, including journal line structure, indentation and Client or Internal status. Restore first analyzes the file and presents a summary, then replaces only your clients, projects and entries after explicit confirmation. Older backups without structured lines remain compatible.'],
       ['Clients and projects', 'Only active clients and projects can receive new entries. A project must belong to a client and has its own hourly rate. Previous entries keep their historical rate.'],
       ['Profile and subscription', 'Your profile lets you change your details and password. Subscription shows the active period and its history. At expiry, your data remains available for backup and renewal.'],
@@ -184,6 +193,15 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.4',
+        date: 'July 31, 2026',
+        changes: [
+          'Consistent presentation of legacy and recent descriptions in the Excel report.',
+          'Normalization applied only while generating the report, without modifying historical data.',
+          'Export Excel button renamed Excel report.',
+        ],
+      },
       {
         version: '0.4.3',
         date: 'July 30, 2026',
