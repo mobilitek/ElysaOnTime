@@ -10,6 +10,7 @@ import {
 } from './WorkLogPage';
 import {
   descriptionDocumentExportText,
+  descriptionDocumentFreeText,
   descriptionDocumentText,
   newDescriptionLineAfter,
   parseLegacyDescription,
@@ -40,6 +41,28 @@ describe('today work-log highlighting', () => {
 });
 
 describe('structured work log descriptions', () => {
+  test('preserves internal markers when switching to free typing', () => {
+    const freeText = descriptionDocumentFreeText([
+      { id: 'client', text: 'Client', depth: 1, includedInExport: true },
+      { id: 'internal', text: 'Interne', depth: 1, includedInExport: false },
+    ]);
+
+    expect(freeText).toBe('-- Client\n--- Interne');
+    expect(parseLegacyDescription(freeText).map((line) => line.includedInExport)).toEqual([true, false]);
+  });
+
+  test('converts free text into a guided hierarchy without changing the source text', () => {
+    const freeText = '- Client\n-- Détail\n--- Interne';
+    const guided = parseLegacyDescription(freeText);
+
+    expect(freeText).toBe('- Client\n-- Détail\n--- Interne');
+    expect(guided.map(({ depth, includedInExport }) => ({ depth, includedInExport }))).toEqual([
+      { depth: 0, includedInExport: true },
+      { depth: 1, includedInExport: true },
+      { depth: 2, includedInExport: false },
+    ]);
+  });
+
   test('inherits indentation and Client/Internal status for a new line', () => {
     const clientLine = newDescriptionLineAfter({
       depth: 3,

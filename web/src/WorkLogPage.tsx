@@ -5,6 +5,7 @@ import { type SystemInfo, UserEnvironmentChip } from './UserEnvironmentChip';
 import { normalizeDurationInput } from './durationInput';
 import {
   descriptionDocumentForSave,
+  descriptionDocumentFreeText,
   descriptionDocumentText,
   newDescriptionLine,
   parseLegacyDescription,
@@ -26,6 +27,7 @@ type Project = {
 };
 type Entry = { id: string; clientId: string; projectId: string; clientName: string; projectName: string; workDate: string; durationMinutes: number; clientMinutes: number; description: string; descriptionDocument: DescriptionLine[] | null; hourlyRate: string; amount: string; isBilled: boolean; isDeleted: boolean };
 type Preset = 'day' | 'week' | 'month' | 'year' | 'custom';
+type DescriptionMode = 'guided' | 'free';
 type Sort = 'workDate' | 'client' | 'project' | 'duration' | 'hourlyRate' | 'amount' | 'isBilled';
 type Props = { language: Language; user: User; systemInfo: SystemInfo | null; systemInfoError: boolean; onLanguageChange: (value: Language) => void; onLogout: () => Promise<void>; onNavigateClients: () => void; onNavigateProjects: () => void; onNavigateProfile: () => void; onNavigateAdmin: () => void };
 type HourBankWeek = {
@@ -84,6 +86,8 @@ export const firstDescriptionLine = (description: string) => description.split(/
 const cookieValue = (name: string) => document.cookie.split('; ').find((value) => value.startsWith(`${name}=`))?.split('=')[1] ?? '';
 const saveCookie = (name: string, value: string) => { document.cookie = `${name}=${value}; Max-Age=31536000; Path=/; SameSite=Lax`; };
 const pageSizeCookie = () => Number(document.cookie.match(/(?:^|; )ontime_page_size=(10|25|50|100)/)?.[1] ?? 50);
+const preferredDescriptionMode = (): DescriptionMode =>
+  localStorage.getItem('ontime_description_mode') === 'free' ? 'free' : 'guided';
 const confidentialCookie = () => {
   const saved = cookieValue('ontime_confidential');
   if (saved === 'true') return true;
@@ -148,6 +152,42 @@ function DescriptionPreview({ description }: { description: string }) {
   </>;
 }
 
+function EntryDescriptionEditor(props: {
+  language: Language;
+  mode: DescriptionMode;
+  lines: DescriptionLine[];
+  freeText: string;
+  legacySource: boolean;
+  onModeChange: (mode: DescriptionMode) => void;
+  onLinesChange: (lines: DescriptionLine[]) => void;
+  onFreeTextChange: (text: string) => void;
+}) {
+  const { language, mode, lines, freeText, legacySource, onModeChange, onLinesChange, onFreeTextChange } = props;
+  const fr = language === 'fr';
+  return <div className="entry-description-editor">
+    <div className="description-mode-switch" role="group" aria-label={fr ? 'Mode de saisie' : 'Entry mode'}>
+      <button type="button" className={mode === 'guided' ? 'active' : ''} aria-pressed={mode === 'guided'} onClick={() => onModeChange('guided')}>
+        {fr ? 'Organisation guidée' : 'Guided outline'}
+      </button>
+      <button type="button" className={mode === 'free' ? 'active' : ''} aria-pressed={mode === 'free'} onClick={() => onModeChange('free')}>
+        {fr ? 'Texte libre' : 'Free typing'}
+      </button>
+    </div>
+    {mode === 'guided'
+      ? <DescriptionOutlineEditor language={language} lines={lines} legacySource={legacySource} onChange={onLinesChange} />
+      : <div className="free-description-editor">
+        <strong>{fr ? 'Écriture libre' : 'Free typing'}</strong>
+        <small>{fr ? 'Écrivez ou collez votre journée sans gestion de lignes ni d’indentation.' : 'Write or paste your day without managed lines or indentation.'}</small>
+        <textarea
+          value={freeText}
+          onChange={(event) => onFreeTextChange(event.target.value)}
+          placeholder={fr ? 'Décrivez votre journée…' : 'Describe your day…'}
+          aria-label={fr ? 'Description en texte libre' : 'Free-form description'}
+        />
+      </div>}
+  </div>;
+}
+
 const copy = {
   fr: { journal: 'Journal', clients: 'Mes clients', projects: 'Projets', logout: 'Se déconnecter', title: 'Journal de travail', period: 'Période', day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', custom: 'Personnalisé', from: 'Du', to: 'Au', allClients: 'Tous les clients', allProjects: 'Tous les projets', chooseClient: 'Choisir un client', chooseProject: 'Choisir un projet', client: 'Client', project: 'Projet', add: 'Nouvelle entrée', export: 'Rapport Excel', backup: 'Sauvegarder', restore: 'Restaurer', date: 'Date', description: 'Description', hours: 'Heures', rate: 'Taux', value: 'Valeur', billed: 'Facturé', items: 'Entrées', confidential: 'Confidentiel', deleted: 'Afficher les supprimées', edit: 'Modifier', duplicate: 'Copier', next: 'Copier au prochain jour ouvrable', toggleBilled: 'Inverser facturation', deleteEntry: 'Supprimer cette entrée', restoreEntry: 'Restaurer cette entrée', empty: 'Aucune entrée pour ces filtres.', selectProject: 'Vous pouvez sélectionner un client et un projet pour filtrer la liste.', newEntry: 'Nouvelle entrée', editEntry: 'Modifier l’entrée', back: 'Retour', save: 'Valider', duration: 'Heures travaillées (HH:MM)', clientDuration: 'Heures facturables (HH:MM)', completeHours: 'Voulez-vous interpréter ces valeurs comme des heures complètes?', required: 'Le client, le projet et la description sont obligatoires. Utilisez le format HH:MM et des blocs de 15 minutes.', warning: 'Cette entrée est facturée. Voulez-vous vraiment continuer?', assignmentLocked: 'Retirez d’abord le statut facturé pour changer le client ou le projet.', reassignmentConfirm: 'Ce changement de projet modifiera les heures facturables de cette entrée. Voulez-vous continuer?', confirmDelete: 'Voulez-vous vraiment supprimer cette entrée?', error: 'Une erreur est survenue.', page: 'Page', previous: 'Précédente', following: 'Suivante', hourBank: 'Banque d’heures', actual: 'Réel', clientTime: 'Facturable', bankMovement: 'Banque', openingBalance: 'Solde initial', closingBalance: 'Solde final', closeWeek: 'Confirmer la semaine', updateWeek: 'Mettre à jour la semaine', reviewWeek: 'Réviser la semaine', bankNote: 'Note (facultative)', bankSaved: 'Fermeture hebdomadaire enregistrée.', invalidBank: 'Les heures facturables doivent respecter les limites du projet et les blocs de 15 minutes.', bankInconsistent: 'Cette semaine a été modifiée après sa fermeture. Enregistrez-la de nouveau pour synchroniser son historique.' },
   en: { journal: 'Work log', clients: 'My clients', projects: 'Projects', logout: 'Sign out', title: 'Work log', period: 'Period', day: 'Day', week: 'Week', month: 'Month', year: 'Year', custom: 'Custom', from: 'From', to: 'To', allClients: 'All clients', allProjects: 'All projects', chooseClient: 'Choose a client', chooseProject: 'Choose a project', client: 'Client', project: 'Project', add: 'New entry', export: 'Excel report', backup: 'Backup', restore: 'Restore', date: 'Date', description: 'Description', hours: 'Hours', rate: 'Rate', value: 'Value', billed: 'Billed', items: 'Entries', confidential: 'Confidential', deleted: 'Show deleted', edit: 'Edit', duplicate: 'Copy', next: 'Copy to next business day', toggleBilled: 'Toggle billed', deleteEntry: 'Delete this entry', restoreEntry: 'Restore this entry', empty: 'No entries match these filters.', selectProject: 'You can select a client and project to filter the list.', newEntry: 'New entry', editEntry: 'Edit entry', back: 'Back', save: 'Save', duration: 'Worked hours (HH:MM)', clientDuration: 'Billable hours (HH:MM)', completeHours: 'Do you want to interpret these values as whole hours?', required: 'Client, project and description are required. Use HH:MM format and 15-minute increments.', warning: 'This entry is billed. Do you really want to continue?', assignmentLocked: 'Remove the billed status first to change the client or project.', reassignmentConfirm: 'This project change will modify the billable hours for this entry. Do you want to continue?', confirmDelete: 'Do you really want to delete this entry?', error: 'Something went wrong.', page: 'Page', previous: 'Previous', following: 'Next', hourBank: 'Hour bank', actual: 'Actual', clientTime: 'Billable', bankMovement: 'Bank', openingBalance: 'Opening balance', closingBalance: 'Closing balance', closeWeek: 'Confirm week', updateWeek: 'Update week', reviewWeek: 'Review week', bankNote: 'Note (optional)', bankSaved: 'Weekly closure saved.', invalidBank: 'Billable hours must respect the project limits and 15-minute increments.', bankInconsistent: 'This week changed after it was closed. Save it again to synchronize its history.' },
@@ -171,6 +211,8 @@ export function WorkLogPage(props: Props) {
   const [entries, setEntries] = useState<Entry[]>([]); const [selected, setSelected] = useState<string[]>([]); const [summary, setSummary] = useState({ itemCount: 0, totalMinutes: 0, totalClientMinutes: 0, totalActualAmount: '0.00', totalAmount: '0.00' });
   const [includeDeleted, setIncludeDeleted] = useState(false); const [confidential, setConfidential] = useState(confidentialCookie); const [pageSize, setPageSize] = useState(pageSizeCookie); const [page, setPage] = useState(1); const [pageCount, setPageCount] = useState(1); const [sortBy, setSortBy] = useState<Sort>('workDate'); const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); const [reload, setReload] = useState(0);
   const [editing, setEditing] = useState<Entry | null>(null); const [formOpen, setFormOpen] = useState(false); const [entryModalExpanded, setEntryModalExpanded] = useState(() => localStorage.getItem('ontime_entry_modal_expanded') === 'true'); const [entryClientId, setEntryClientId] = useState(''); const [entryProjectId, setEntryProjectId] = useState(''); const [entryProjects, setEntryProjects] = useState<Project[]>([]); const [workDate, setWorkDate] = useState(iso(today)); const [time, setTime] = useState('08:00'); const [clientTime, setClientTime] = useState('08:00'); const [descriptionLines, setDescriptionLines] = useState<DescriptionLine[]>(() => [newDescriptionLine()]); const [legacyDescription, setLegacyDescription] = useState(false); const [error, setError] = useState(''); const [filterError, setFilterError] = useState('');
+  const [descriptionMode, setDescriptionMode] = useState<DescriptionMode>(preferredDescriptionMode);
+  const [freeDescription, setFreeDescription] = useState('');
   const [notice, setNotice] = useState('');
   const [loadingEntries, setLoadingEntries] = useState(false); const [exporting, setExporting] = useState(false); const [actionBusy, setActionBusy] = useState(false);
   const [bankWeek, setBankWeek] = useState<HourBankWeek | null>(null);
@@ -329,12 +371,44 @@ export function WorkLogPage(props: Props) {
     setWorkDate(iso(today));
     setTime('08:00');
     setClientTime('08:00');
+    const mode = preferredDescriptionMode();
+    setDescriptionMode(mode);
     setDescriptionLines([newDescriptionLine()]);
+    setFreeDescription('');
     setLegacyDescription(false);
     setError('');
     setFormOpen(true);
   };
-  const openEdit = (entry: Entry) => { if (entry.isBilled && !confirm(text.warning)) return; setEditing(entry); setEntryClientId(entry.clientId); setEntryProjectId(entry.projectId); setWorkDate(entry.workDate); setTime(formatDuration(entry.durationMinutes)); setClientTime(formatDuration(entry.clientMinutes)); setDescriptionLines(entry.descriptionDocument ?? parseLegacyDescription(entry.description)); setLegacyDescription(!entry.descriptionDocument); setError(''); setFormOpen(true); };
+  const openEdit = (entry: Entry) => {
+    if (entry.isBilled && !confirm(text.warning)) return;
+    setEditing(entry);
+    setEntryClientId(entry.clientId);
+    setEntryProjectId(entry.projectId);
+    setWorkDate(entry.workDate);
+    setTime(formatDuration(entry.durationMinutes));
+    setClientTime(formatDuration(entry.clientMinutes));
+    setDescriptionMode(entry.descriptionDocument ? 'guided' : 'free');
+    setDescriptionLines(entry.descriptionDocument ?? parseLegacyDescription(entry.description));
+    setFreeDescription(entry.description);
+    setLegacyDescription(!entry.descriptionDocument);
+    setError('');
+    setFormOpen(true);
+  };
+  const changeDescriptionMode = (mode: DescriptionMode) => {
+    if (mode === descriptionMode) return;
+    if (mode === 'free') {
+      const guided = descriptionDocumentForSave(descriptionLines);
+      if (guided.length && !confirm(language === 'fr'
+        ? 'Le texte sera conservé, mais l’indentation guidée et les statuts Client/Interne ne pourront plus être gérés séparément. Continuer?'
+        : 'The text will be preserved, but guided indentation and individual Client/Internal statuses can no longer be managed. Continue?')) return;
+      setFreeDescription(descriptionDocumentFreeText(guided));
+    } else {
+      setDescriptionLines(parseLegacyDescription(freeDescription));
+      setLegacyDescription(Boolean(freeDescription.trim()));
+    }
+    setDescriptionMode(mode);
+    localStorage.setItem('ontime_description_mode', mode);
+  };
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const normalizedTime = normalizeDurationInput(time) ?? time;
@@ -343,8 +417,12 @@ export function WorkLogPage(props: Props) {
     if (normalizedClientTime !== clientTime) setClientTime(normalizedClientTime);
     const durationMinutes = parseDuration(normalizedTime);
     const clientMinutes = parseDuration(normalizedClientTime);
-    const descriptionDocument = descriptionDocumentForSave(descriptionLines);
-    const description = descriptionDocumentText(descriptionDocument);
+    const descriptionDocument = descriptionMode === 'guided'
+      ? descriptionDocumentForSave(descriptionLines)
+      : null;
+    const description = descriptionMode === 'guided'
+      ? descriptionDocumentText(descriptionDocument ?? [])
+      : freeDescription.trim();
     if (
       !entryClientId
       || !entryProjectId
@@ -565,7 +643,7 @@ export function WorkLogPage(props: Props) {
       <button type="button" className="mobile-add-entry" onClick={openCreate}><span aria-hidden="true">＋</span>{language === 'fr' ? 'Ajouter' : 'Add'}</button>
       <button type="button" onClick={onNavigateProfile}><span aria-hidden="true">○</span>{language === 'fr' ? 'Profil' : 'Profile'}</button>
     </nav>
-    {formOpen ? <div className="modal-backdrop"><section className={`client-modal entry-modal ${entryModalExpanded ? 'entry-modal-expanded' : ''}`}><div className="modal-heading"><h2>{editing ? text.editEntry : text.newEntry}</h2><div className="modal-heading-actions"><button type="button" className="entry-modal-size-button" aria-pressed={entryModalExpanded} onClick={() => { const expanded = !entryModalExpanded; setEntryModalExpanded(expanded); localStorage.setItem('ontime_entry_modal_expanded', String(expanded)); }}>{entryModalExpanded ? (language === 'fr' ? 'Réduire' : 'Restore') : (language === 'fr' ? 'Agrandir' : 'Expand')}</button><button className="close-button" onClick={() => setFormOpen(false)}>×</button></div></div><form onSubmit={save}><div className="entry-assignment-grid"><label>{text.client}<select value={entryClientId} disabled={Boolean(editing?.isBilled)} required onChange={(event) => { const value = event.target.value; setEntryClientId(value); setEntryProjectId(''); if (!editing) { saveCookie('ontime_entry_client', value); saveCookie('ontime_entry_project', ''); } }}><option value="">{text.chooseClient}</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>{text.project}<select value={entryProjectId} disabled={Boolean(editing?.isBilled) || !entryClientId} required onChange={(event) => { setEntryProjectId(event.target.value); if (!editing) saveCookie('ontime_entry_project', event.target.value); }}><option value="">{text.chooseProject}</option>{entryProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div>{editing?.isBilled ? <p className="entry-assignment-note">{text.assignmentLocked}</p> : null}<label>{text.date}<input type="date" value={workDate} onChange={(event) => setWorkDate(event.target.value)} required /></label><div className={entryUsesBank ? 'entry-time-grid' : ''}><label>{text.duration}<QuickDurationInput value={time} onChange={(value) => { setTime(value); if (!editing) setClientTime(value); }} onComplete={(value) => { if (!editing) setClientTime(value); }} /></label>{entryUsesBank ? <label>{text.clientDuration}<QuickDurationInput value={clientTime} onChange={setClientTime} /></label> : null}</div>{entryUsesBank ? <div className="entry-bank-preview"><span>{text.bankMovement}</span><strong className={(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) < 0 ? 'negative' : 'positive'}>{(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) > 0 ? '+' : ''}{formatDuration((parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0))}</strong><small>{formatDuration(entryProject?.maxDailyBillableMinutes ?? 480)} {language === 'fr' ? 'facturables au maximum par jour pour ce projet' : 'maximum billable per day for this project'}</small></div> : null}<div className="entry-description-field"><span>{text.description}</span><DescriptionOutlineEditor language={language} lines={descriptionLines} legacySource={legacyDescription} onChange={setDescriptionLines} /></div>{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setFormOpen(false)}>{text.back}</button><button className="primary-button">{text.save}</button></div></form></section></div> : null}
+    {formOpen ? <div className="modal-backdrop"><section className={`client-modal entry-modal ${entryModalExpanded ? 'entry-modal-expanded' : ''}`}><div className="modal-heading"><h2>{editing ? text.editEntry : text.newEntry}</h2><div className="modal-heading-actions"><button type="button" className="entry-modal-size-button" aria-pressed={entryModalExpanded} onClick={() => { const expanded = !entryModalExpanded; setEntryModalExpanded(expanded); localStorage.setItem('ontime_entry_modal_expanded', String(expanded)); }}>{entryModalExpanded ? (language === 'fr' ? 'Réduire' : 'Restore') : (language === 'fr' ? 'Agrandir' : 'Expand')}</button><button className="close-button" onClick={() => setFormOpen(false)}>×</button></div></div><form onSubmit={save}><div className="entry-assignment-grid"><label>{text.client}<select value={entryClientId} disabled={Boolean(editing?.isBilled)} required onChange={(event) => { const value = event.target.value; setEntryClientId(value); setEntryProjectId(''); if (!editing) { saveCookie('ontime_entry_client', value); saveCookie('ontime_entry_project', ''); } }}><option value="">{text.chooseClient}</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>{text.project}<select value={entryProjectId} disabled={Boolean(editing?.isBilled) || !entryClientId} required onChange={(event) => { setEntryProjectId(event.target.value); if (!editing) saveCookie('ontime_entry_project', event.target.value); }}><option value="">{text.chooseProject}</option>{entryProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div>{editing?.isBilled ? <p className="entry-assignment-note">{text.assignmentLocked}</p> : null}<label>{text.date}<input type="date" value={workDate} onChange={(event) => setWorkDate(event.target.value)} required /></label><div className={entryUsesBank ? 'entry-time-grid' : ''}><label>{text.duration}<QuickDurationInput value={time} onChange={(value) => { setTime(value); if (!editing) setClientTime(value); }} onComplete={(value) => { if (!editing) setClientTime(value); }} /></label>{entryUsesBank ? <label>{text.clientDuration}<QuickDurationInput value={clientTime} onChange={setClientTime} /></label> : null}</div>{entryUsesBank ? <div className="entry-bank-preview"><span>{text.bankMovement}</span><strong className={(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) < 0 ? 'negative' : 'positive'}>{(parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0) > 0 ? '+' : ''}{formatDuration((parseDuration(time) ?? 0) - (parseDuration(clientTime) ?? 0))}</strong><small>{formatDuration(entryProject?.maxDailyBillableMinutes ?? 480)} {language === 'fr' ? 'facturables au maximum par jour pour ce projet' : 'maximum billable per day for this project'}</small></div> : null}<div className="entry-description-field"><span>{text.description}</span><EntryDescriptionEditor language={language} mode={descriptionMode} lines={descriptionLines} freeText={freeDescription} legacySource={legacyDescription} onModeChange={changeDescriptionMode} onLinesChange={setDescriptionLines} onFreeTextChange={setFreeDescription} /></div>{error ? <p className="error-message">{error}</p> : null}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setFormOpen(false)}>{text.back}</button><button className="primary-button">{text.save}</button></div></form></section></div> : null}
     {bankModalOpen && bankWeek ? <div className="modal-backdrop"><section className="client-modal hour-bank-modal"><div className="modal-heading"><div><p className="eyebrow">{text.hourBank}</p><h2>{formatDate(bankWeek.weekStart)} – {formatDate(bankWeek.weekEnd)}</h2></div><button className="close-button" onClick={() => setBankModalOpen(false)}>×</button></div><div className="hour-bank-balances"><span>{text.openingBalance}<strong>{formatDuration(bankWeek.openingBalanceMinutes)}</strong></span><span>{text.closingBalance}<strong>{formatDuration(bankWeek.closingBalanceMinutes)}</strong></span></div><div className="hour-bank-days"><div className="hour-bank-day hour-bank-day-head"><span>{text.date}</span><span>{text.actual}</span><span>{text.clientTime}</span><span>{text.bankMovement}</span></div>{bankWeek.days.map((day) => <div className="hour-bank-day" key={day.workDate}><span>{formatDate(day.workDate)}</span><strong>{formatDuration(day.actualMinutes)}</strong><strong>{formatDuration(day.billedMinutes)}</strong><strong className={day.movementMinutes < 0 ? 'negative' : day.movementMinutes > 0 ? 'positive' : ''}>{day.movementMinutes > 0 ? '+' : ''}{formatDuration(day.movementMinutes)}</strong></div>)}</div><label className="hour-bank-note">{text.bankNote}<input value={bankNote} maxLength={500} onChange={(event) => setBankNote(event.target.value)} /></label>{bankError ? <p className="error-message">{bankError}</p> : null}<div className="hour-bank-footer"><small>{formatDuration(bankWeek.project.maxDailyBillableMinutes)} / {language === 'fr' ? 'jour' : 'day'} · {formatDuration(bankWeek.project.maxWeeklyBillableMinutes)} / {language === 'fr' ? 'semaine' : 'week'}</small><button className="primary-button small" disabled={bankBusy} onClick={() => void saveBankWeek()}>{bankWeek.isClosed ? text.updateWeek : text.closeWeek}</button></div></section></div> : null}
   </main>;
 }

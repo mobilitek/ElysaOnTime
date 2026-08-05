@@ -60,6 +60,15 @@ export const descriptionDocumentText = (lines: DescriptionLine[]) =>
     .map(descriptionLineText)
     .join('\n');
 
+export const descriptionDocumentFreeText = (lines: DescriptionLine[]) =>
+  lines
+    .filter((line) => line.text.trim())
+    .map((line) => {
+      const markerDepth = line.includedInExport ? line.depth + 1 : Math.max(3, line.depth + 1);
+      return `${'-'.repeat(markerDepth)} ${line.text.trim()}`;
+    })
+    .join('\n');
+
 export const descriptionDocumentExportText = (lines: DescriptionLine[]) =>
   descriptionDocumentText(lines.filter((line) => line.includedInExport));
 
