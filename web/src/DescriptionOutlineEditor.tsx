@@ -1,4 +1,4 @@
-import { type CSSProperties, type KeyboardEvent, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   descriptionDocumentText,
   descriptionDocumentExportText,
@@ -13,6 +13,13 @@ type Props = {
   lines: DescriptionLine[];
   legacySource: boolean;
   onChange: (lines: DescriptionLine[]) => void;
+  headingAccessory?: ReactNode;
+};
+type VisibleLines = 'auto' | '3' | '5' | '8' | 'all';
+
+const preferredVisibleLines = (): VisibleLines => {
+  const saved = localStorage.getItem('ontime_outline_visible_lines');
+  return saved === '3' || saved === '5' || saved === '8' || saved === 'all' ? saved : 'auto';
 };
 
 export function DescriptionOutlineEditor({
@@ -20,10 +27,42 @@ export function DescriptionOutlineEditor({
   lines,
   legacySource,
   onChange,
+  headingAccessory,
 }: Props) {
   const pendingFocus = useRef<string | null>(null);
+  const linesContainer = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
+  const [visibleLines, setVisibleLines] = useState<VisibleLines>(preferredVisibleLines);
+  const [autoHeight, setAutoHeight] = useState('184px');
   const fr = language === 'fr';
+  const visibleHeight = visibleLines === 'all'
+    ? 'none'
+    : visibleLines === 'auto'
+      ? autoHeight
+      : `${Number(visibleLines) * 41 + 15}px`;
+  useEffect(() => {
+    if (visibleLines !== 'auto') return;
+    const container = linesContainer.current;
+    const modal = container?.closest<HTMLElement>('.entry-modal');
+    if (!container || !modal) return;
+    const calculate = () => {
+      const top = container.getBoundingClientRect().top;
+      const bottom = Math.min(window.innerHeight, modal.getBoundingClientRect().bottom);
+      // Garder uniquement l'espace nécessaire pour l'aperçu, les actions et
+      // les marges du formulaire. Le reste appartient réellement aux lignes.
+      const available = Math.max(0, bottom - top - 145);
+      const rowCount = Math.max(3, Math.min(14, Math.floor((available - 15) / 41)));
+      setAutoHeight(`${rowCount * 41 + 15}px`);
+    };
+    calculate();
+    window.addEventListener('resize', calculate);
+    const observer = new ResizeObserver(calculate);
+    observer.observe(modal);
+    return () => {
+      window.removeEventListener('resize', calculate);
+      observer.disconnect();
+    };
+  }, [visibleLines]);
   const replace = (id: string, values: Partial<DescriptionLine>) =>
     onChange(lines.map((line) => line.id === id ? { ...line, ...values } : line));
   const focusSoon = (id: string) => {
@@ -93,6 +132,21 @@ export function DescriptionOutlineEditor({
         <small>{fr ? 'Entrée : nouvel élément · Maj+Entrée : retour interne · ⌘/Ctrl+Entrée : valider · Tab : indenter' : 'Enter: new item · Shift+Enter: line break · ⌘/Ctrl+Enter: save · Tab: indent'}</small>
       </div>
       <div className="outline-heading-actions">
+        {headingAccessory}
+        <label className="outline-visible-lines">
+          <span>{fr ? 'Lignes visibles' : 'Visible lines'}</span>
+          <select value={visibleLines} onChange={(event) => {
+            const value = event.target.value as VisibleLines;
+            setVisibleLines(value);
+            localStorage.setItem('ontime_outline_visible_lines', value);
+          }}>
+            <option value="auto">{fr ? 'Auto' : 'Auto'}</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="all">{fr ? 'Toutes' : 'All'}</option>
+          </select>
+        </label>
         <button type="button" className="outline-copy" onClick={() => void copyAll()}>
           {copied ? `✓ ${fr ? 'Copié' : 'Copied'}` : `⧉ ${fr ? 'Copier tout' : 'Copy all'}`}
         </button>
@@ -104,7 +158,7 @@ export function DescriptionOutlineEditor({
         ? 'Ancienne description interprétée sans modifier l’original. Les lignes « --- » sont marquées internes comme dans l’export actuel.'
         : 'Legacy description interpreted without changing the original. “---” lines are marked internal as in the current export.'}
     </p> : null}
-    <div className="outline-lines">
+    <div ref={linesContainer} className="outline-lines" style={{ maxHeight: visibleHeight }}>
       {lines.map((line, index) => <div
         className={`outline-line ${line.includedInExport ? '' : 'outline-line-internal'}`}
         key={line.id}

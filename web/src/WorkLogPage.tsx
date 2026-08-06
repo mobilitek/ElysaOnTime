@@ -152,6 +152,32 @@ function DescriptionPreview({ description }: { description: string }) {
   </>;
 }
 
+function EntryModeIndicator({ guided, language }: { guided: boolean; language: Language }) {
+  const title = guided
+    ? (language === 'fr' ? 'Organisation guidée' : 'Guided outline')
+    : (language === 'fr' ? 'Texte libre' : 'Free typing');
+  return <span className={`entry-mode-indicator ${guided ? 'guided' : 'free'}`} title={title} aria-label={title}>
+    <span aria-hidden="true">{guided ? '≡' : 'T'}</span>
+  </span>;
+}
+
+function DescriptionModeSwitch(props: {
+  language: Language;
+  mode: DescriptionMode;
+  onChange: (mode: DescriptionMode) => void;
+}) {
+  const { language, mode, onChange } = props;
+  const fr = language === 'fr';
+  return <div className="description-mode-switch" role="group" aria-label={fr ? 'Mode de saisie' : 'Entry mode'}>
+    <button type="button" className={mode === 'guided' ? 'active' : ''} aria-pressed={mode === 'guided'} onClick={() => onChange('guided')}>
+      {fr ? 'Organisation guidée' : 'Guided outline'}
+    </button>
+    <button type="button" className={mode === 'free' ? 'active' : ''} aria-pressed={mode === 'free'} onClick={() => onChange('free')}>
+      {fr ? 'Texte libre' : 'Free typing'}
+    </button>
+  </div>;
+}
+
 function EntryDescriptionEditor(props: {
   language: Language;
   mode: DescriptionMode;
@@ -164,20 +190,12 @@ function EntryDescriptionEditor(props: {
 }) {
   const { language, mode, lines, freeText, legacySource, onModeChange, onLinesChange, onFreeTextChange } = props;
   const fr = language === 'fr';
+  const modeSwitch = <DescriptionModeSwitch language={language} mode={mode} onChange={onModeChange} />;
   return <div className="entry-description-editor">
-    <div className="description-mode-switch" role="group" aria-label={fr ? 'Mode de saisie' : 'Entry mode'}>
-      <button type="button" className={mode === 'guided' ? 'active' : ''} aria-pressed={mode === 'guided'} onClick={() => onModeChange('guided')}>
-        {fr ? 'Organisation guidée' : 'Guided outline'}
-      </button>
-      <button type="button" className={mode === 'free' ? 'active' : ''} aria-pressed={mode === 'free'} onClick={() => onModeChange('free')}>
-        {fr ? 'Texte libre' : 'Free typing'}
-      </button>
-    </div>
     {mode === 'guided'
-      ? <DescriptionOutlineEditor language={language} lines={lines} legacySource={legacySource} onChange={onLinesChange} />
+      ? <DescriptionOutlineEditor language={language} lines={lines} legacySource={legacySource} onChange={onLinesChange} headingAccessory={modeSwitch} />
       : <div className="free-description-editor">
-        <strong>{fr ? 'Écriture libre' : 'Free typing'}</strong>
-        <small>{fr ? 'Écrivez ou collez votre journée sans gestion de lignes ni d’indentation.' : 'Write or paste your day without managed lines or indentation.'}</small>
+        <div className="free-description-heading"><div><strong>{fr ? 'Écriture libre' : 'Free typing'}</strong><small>{fr ? 'Écrivez ou collez votre journée sans gestion de lignes ni d’indentation.' : 'Write or paste your day without managed lines or indentation.'}</small></div>{modeSwitch}</div>
         <textarea
           value={freeText}
           onChange={(event) => onFreeTextChange(event.target.value)}
@@ -616,7 +634,7 @@ export function WorkLogPage(props: Props) {
               <div><strong>{entry.clientName}</strong><span>{entry.projectName}</span></div>
               <time dateTime={entry.workDate}>{isToday ? <span className="today-entry-badge">{todayLabel}</span> : null}{formatWeekday(entry.workDate, language)} {formatDate(entry.workDate)}</time>
             </div>
-            <button type="button" className="mobile-entry-description" onClick={() => openEdit(entry)}>{firstDescriptionLine(entry.description)}</button>
+            <button type="button" className="mobile-entry-description" onClick={() => openEdit(entry)}><EntryModeIndicator guided={Boolean(entry.descriptionDocument)} language={language} /><span>{firstDescriptionLine(entry.description)}</span></button>
             <div className="mobile-entry-metrics">
               <span><small>{text.actual}</small><strong>{formatDuration(entry.durationMinutes)}</strong></span>
               {entry.clientMinutes !== entry.durationMinutes ? <span><small>{text.clientTime}</small><strong>{formatDuration(entry.clientMinutes)}</strong></span> : null}
@@ -635,7 +653,7 @@ export function WorkLogPage(props: Props) {
         })}
         {!entries.length && !loadingEntries ? <p className="mobile-empty-state">{text.empty}</p> : null}
       </div>
-      <div className="journal-table-wrap"><table className="journal-table"><thead><tr><th><input type="checkbox" checked={entries.length > 0 && selected.length === entries.length} onChange={(event) => setSelected(event.target.checked ? entries.map((item) => item.id) : [])} /></th>{columns === 'both' ? <th onClick={() => sort('client')}>{text.client}</th> : null}{columns !== 'none' ? <th onClick={() => sort('project')}>{text.project}</th> : null}<th>{text.day}</th><th onClick={() => sort('workDate')}>{text.date}</th><th>{text.description}</th><th onClick={() => sort('duration')}>{selectedProject?.hourBankEnabled ? text.actual : text.hours}</th>{selectedProject?.hourBankEnabled ? <><th>{text.clientTime}</th><th>{text.bankMovement}</th></> : null}{!confidential ? <><th onClick={() => sort('hourlyRate')}>{text.rate}</th><th onClick={() => sort('amount')}>{text.value}</th></> : null}<th onClick={() => sort('isBilled')}>{text.billed}</th><th /></tr></thead><tbody>{entries.map((entry) => { const movement = entry.durationMinutes - entry.clientMinutes; const isToday = isTodayWorkDate(entry.workDate, today); return <tr key={entry.id} className={`${entry.isDeleted ? 'deleted-entry ' : ''}${isToday ? 'today-entry' : ''}`}><td><input type="checkbox" checked={selected.includes(entry.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, entry.id] : current.filter((id) => id !== entry.id))} /></td>{columns === 'both' ? <td>{entry.clientName}</td> : null}{columns !== 'none' ? <td>{entry.projectName}</td> : null}<td>{formatWeekday(entry.workDate, language)}</td><td>{formatDate(entry.workDate)}{isToday ? <span className="today-entry-badge">{todayLabel}</span> : null}</td><td className="description-cell"><DescriptionPreview description={entry.description} /></td><td>{formatDuration(entry.durationMinutes)}</td>{selectedProject?.hourBankEnabled ? <><td>{formatDuration(entry.clientMinutes)}</td><td className={movement < 0 ? 'negative' : movement > 0 ? 'positive' : ''}>{movement > 0 ? '+' : ''}{formatDuration(movement)}</td></> : null}{!confidential ? <><td>${Number(entry.hourlyRate).toFixed(2)}</td><td>${Number(entry.amount).toFixed(2)}</td></> : null}<td><input type="checkbox" checked={entry.isBilled} disabled={actionBusy} title={text.toggleBilled} aria-label={`${text.toggleBilled}: ${formatDate(entry.workDate)}`} onChange={() => void action('/api/work-entries/toggle-billed', { ids: [entry.id] })} /></td><td className="row-actions"><button title={text.edit} onClick={() => openEdit(entry)}>✎</button><button title={text.duplicate} onClick={() => void duplicate(entry, false)}>⧉</button><button title={text.next} onClick={() => void duplicate(entry, true)}>⧉+1</button><button className={entry.isDeleted ? 'restore-entry-action' : 'delete-entry-action'} title={entry.isDeleted ? text.restoreEntry : text.deleteEntry} aria-label={`${entry.isDeleted ? text.restoreEntry : text.deleteEntry}: ${formatDate(entry.workDate)}`} disabled={actionBusy} onClick={() => toggleDeletedEntry(entry)}>{entry.isDeleted ? '↺' : '−'}</button></td></tr>; })}{!entries.length ? <tr><td colSpan={15} className="empty-table">{text.empty}</td></tr> : null}</tbody></table></div>
+      <div className="journal-table-wrap"><table className="journal-table"><thead><tr><th><input type="checkbox" checked={entries.length > 0 && selected.length === entries.length} onChange={(event) => setSelected(event.target.checked ? entries.map((item) => item.id) : [])} /></th>{columns === 'both' ? <th onClick={() => sort('client')}>{text.client}</th> : null}{columns !== 'none' ? <th onClick={() => sort('project')}>{text.project}</th> : null}<th>{text.day}</th><th onClick={() => sort('workDate')}>{text.date}</th><th>{text.description}</th><th onClick={() => sort('duration')}>{selectedProject?.hourBankEnabled ? text.actual : text.hours}</th>{selectedProject?.hourBankEnabled ? <><th>{text.clientTime}</th><th>{text.bankMovement}</th></> : null}{!confidential ? <><th onClick={() => sort('hourlyRate')}>{text.rate}</th><th onClick={() => sort('amount')}>{text.value}</th></> : null}<th onClick={() => sort('isBilled')}>{text.billed}</th><th /></tr></thead><tbody>{entries.map((entry) => { const movement = entry.durationMinutes - entry.clientMinutes; const isToday = isTodayWorkDate(entry.workDate, today); return <tr key={entry.id} className={`${entry.isDeleted ? 'deleted-entry ' : ''}${isToday ? 'today-entry' : ''}`}><td><input type="checkbox" checked={selected.includes(entry.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, entry.id] : current.filter((id) => id !== entry.id))} /></td>{columns === 'both' ? <td>{entry.clientName}</td> : null}{columns !== 'none' ? <td>{entry.projectName}</td> : null}<td>{formatWeekday(entry.workDate, language)}</td><td>{formatDate(entry.workDate)}{isToday ? <span className="today-entry-badge">{todayLabel}</span> : null}</td><td className="description-cell"><div className="entry-description-summary"><EntryModeIndicator guided={Boolean(entry.descriptionDocument)} language={language} /><DescriptionPreview description={entry.description} /></div></td><td>{formatDuration(entry.durationMinutes)}</td>{selectedProject?.hourBankEnabled ? <><td>{formatDuration(entry.clientMinutes)}</td><td className={movement < 0 ? 'negative' : movement > 0 ? 'positive' : ''}>{movement > 0 ? '+' : ''}{formatDuration(movement)}</td></> : null}{!confidential ? <><td>${Number(entry.hourlyRate).toFixed(2)}</td><td>${Number(entry.amount).toFixed(2)}</td></> : null}<td><input type="checkbox" checked={entry.isBilled} disabled={actionBusy} title={text.toggleBilled} aria-label={`${text.toggleBilled}: ${formatDate(entry.workDate)}`} onChange={() => void action('/api/work-entries/toggle-billed', { ids: [entry.id] })} /></td><td className="row-actions"><button title={text.edit} onClick={() => openEdit(entry)}>✎</button><button title={text.duplicate} onClick={() => void duplicate(entry, false)}>⧉</button><button title={text.next} onClick={() => void duplicate(entry, true)}>⧉+1</button><button className={entry.isDeleted ? 'restore-entry-action' : 'delete-entry-action'} title={entry.isDeleted ? text.restoreEntry : text.deleteEntry} aria-label={`${entry.isDeleted ? text.restoreEntry : text.deleteEntry}: ${formatDate(entry.workDate)}`} disabled={actionBusy} onClick={() => toggleDeletedEntry(entry)}>{entry.isDeleted ? '↺' : '−'}</button></td></tr>; })}{!entries.length ? <tr><td colSpan={15} className="empty-table">{text.empty}</td></tr> : null}</tbody></table></div>
       <div className="journal-pagination"><label>{text.items}<select value={pageSize} onChange={(event) => { const value = Number(event.target.value); setPageSize(value); setPage(1); document.cookie = `ontime_page_size=${value}; Max-Age=31536000; Path=/; SameSite=Lax`; }}>{[10, 25, 50, 100].map((value) => <option key={value}>{value}</option>)}</select></label><button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>{text.previous}</button><span>{text.page} {page} / {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)}>{text.following}</button></div>
     </section>
     <nav className="mobile-primary-nav" aria-label={language === 'fr' ? 'Navigation mobile' : 'Mobile navigation'}>
