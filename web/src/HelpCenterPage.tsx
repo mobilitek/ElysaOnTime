@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.10';
+export const CURRENT_VERSION = '0.4.11';
 
 export const HELP_CONTENT = {
   fr: {
@@ -49,6 +49,13 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.11',
+        date: '7 août 2026',
+        changes: [
+          'Séparateur des avis de notes internes remplacé par des astérisques afin d’éviter toute confusion avec les anciens marqueurs internes.',
+        ],
+      },
       {
         version: '0.4.10',
         date: '7 août 2026',
@@ -243,6 +250,13 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.11',
+        date: 'August 7, 2026',
+        changes: [
+          'Internal-note notice separator changed to asterisks to avoid conflicts with legacy internal markers.',
+        ],
+      },
       {
         version: '0.4.10',
         date: 'August 7, 2026',

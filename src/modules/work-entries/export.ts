@@ -67,9 +67,14 @@ export const hasHiddenDescriptionLines = (
   .some((line) => !line.includedInExport);
 
 export const internalEntryNotice = (language: 'fr' | 'en') => [
-    '-------------',
+    '*************',
     ...confidentialExportNotice[language],
   ].join('\n');
+
+export const appendInternalNotice = (
+  exportedDescription: string,
+  language: 'fr' | 'en',
+) => `${exportedDescription}\n\n${internalEntryNotice(language)}`;
 
 export const exportEntryDescriptionWithNotice = (
   description: string,
@@ -78,7 +83,7 @@ export const exportEntryDescriptionWithNotice = (
 ) => {
   const exported = exportEntryDescription(description, document);
   return hasHiddenDescriptionLines(description, document)
-    ? `${exported}\n\n${internalEntryNotice(language)}`
+    ? appendInternalNotice(exported, language)
     : exported;
 };
 
@@ -192,12 +197,11 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
     // L'export destiné au client utilise directement le temps client enregistré
     // sur chaque entrée; le temps réellement travaillé demeure interne.
     const durationMinutes = row.clientMinutes;
-    const exportedDescription = exportEntryDescriptionWithNotice(
+    const exportedDescription = exportEntryDescription(
       row.description,
       row.descriptionDocument,
-      options.language,
     );
-    const description = bank
+    const bankDescription = bank
       ? descriptionWithBankCode(
         exportedDescription,
         bank.openingMinutes,
@@ -205,6 +209,11 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
         bank.closingMinutes,
       )
       : exportedDescription;
+    // Ajouter l'avis après le traitement du Code H afin qu'il demeure toujours
+    // le dernier élément de la description exportée.
+    const description = hasHiddenDescriptionLines(row.description, row.descriptionDocument)
+      ? appendInternalNotice(bankDescription, options.language)
+      : bankDescription;
     const date = excelDate(row.workDate); const value: Record<string, unknown> = { day: text.days[date.getUTCDay()], date, description, hours: durationMinutes / 1440 };
     if (showClient) value.client = row.clientName; if (showProject) value.project = row.projectName;
     if (!options.confidential) { value.rate = Number(row.hourlyRate); value.value = (durationMinutes / 60) * Number(row.hourlyRate); }

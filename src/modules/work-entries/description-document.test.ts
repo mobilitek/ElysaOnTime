@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { descriptionDocumentExportText, parseLegacyDescription } from './description-document';
-import { exportEntryDescriptionWithNotice, hasHiddenDescriptionLines, internalEntryNotice } from './export';
+import { appendInternalNotice, exportEntryDescriptionWithNotice, hasHiddenDescriptionLines, internalEntryNotice } from './export';
 
 describe('legacy work-entry export normalization', () => {
   test('renders legacy and current hierarchy with the same bullet format', () => {
@@ -33,7 +33,7 @@ describe('legacy work-entry export normalization', () => {
     expect(hasHiddenDescriptionLines('- Visible\n--- Note interne', null)).toBe(true);
     expect(hasHiddenDescriptionLines('- Visible', null)).toBe(false);
     expect(internalEntryNotice('en')).toBe([
-      '-------------',
+      '*************',
       'Some information has been intentionally hidden because it is marked as internal.',
       'When relevant and appropriate for disclosure, it may be provided upon request by an authorized representative.',
       'Some notes may, however, be strictly internal and not intended for disclosure.',
@@ -45,10 +45,13 @@ describe('legacy work-entry export normalization', () => {
     )).toBe([
       '- Visible',
       '',
-      '-------------',
+      '*************',
       'Some information has been intentionally hidden because it is marked as internal.',
       'When relevant and appropriate for disclosure, it may be provided upon request by an authorized representative.',
       'Some notes may, however, be strictly internal and not intended for disclosure.',
     ].join('\n'));
+    expect(appendInternalNotice('- Visible\n- Code H: 10', 'fr')).toContain(
+      '\n\n*************\nCertaines informations',
+    );
   });
 });

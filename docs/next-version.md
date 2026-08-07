@@ -2,7 +2,7 @@
 
 ## Améliorations légères à évaluer
 
-La version 0.4.10 constitue un bon jalon. Avant d'ajouter une autre fonctionnalité
+La version 0.4.11 constitue un bon jalon. Avant d'ajouter une autre fonctionnalité
 importante, laisser vivre la version en production quelques jours et utiliser les
 journaux pour confirmer les besoins réels.
 
@@ -24,7 +24,7 @@ implémenter tous immédiatement.
 ## Optimisation de la conservation des journaux
 
 À planifier pour la prochaine session de développement. Aucun changement
-fonctionnel n'est inclus dans la version 0.4.10.
+fonctionnel n'est inclus dans la version 0.4.11.
 
 - Réduire le volume de `technical_logs` en ne conservant durablement que les
   erreurs, avertissements, requêtes lentes et opérations importantes.
