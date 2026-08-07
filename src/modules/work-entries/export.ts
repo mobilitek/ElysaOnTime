@@ -25,6 +25,19 @@ const labels = {
   days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
 } as const;
 
+export const confidentialExportNotice = {
+  fr: [
+    'Certaines informations ont été volontairement masquées parce qu’elles sont identifiées comme internes.',
+    'Lorsqu’elles sont pertinentes et communicables, elles peuvent être fournies sur demande par une personne responsable.',
+    'Certaines notes peuvent toutefois être strictement internes et ne pas être destinées à être communiquées.',
+  ],
+  en: [
+    'Some information has been intentionally hidden because it is marked as internal.',
+    'When relevant and appropriate for disclosure, it may be provided upon request by an authorized representative.',
+    'Some notes may, however, be strictly internal and not intended for disclosure.',
+  ],
+} as const;
+
 // Ces transformations reproduisent le nom et les valeurs de date de l'ancien
 // export Excel utilisé par les clients.
 const excelDate = (value: string) => new Date(`${value}T00:00:00Z`);
@@ -46,6 +59,28 @@ export const exportEntryDescription = (
   description: string,
   document: DescriptionLine[] | null,
 ) => descriptionDocumentExportText(document ?? parseLegacyDescription(description));
+
+export const hasHiddenDescriptionLines = (
+  description: string,
+  document: DescriptionLine[] | null,
+) => (document ?? parseLegacyDescription(description))
+  .some((line) => !line.includedInExport);
+
+export const internalEntryNotice = (language: 'fr' | 'en') => [
+    '-------------',
+    ...confidentialExportNotice[language],
+  ].join('\n');
+
+export const exportEntryDescriptionWithNotice = (
+  description: string,
+  document: DescriptionLine[] | null,
+  language: 'fr' | 'en',
+) => {
+  const exported = exportEntryDescription(description, document);
+  return hasHiddenDescriptionLines(description, document)
+    ? [exported, internalEntryNotice(language)].filter(Boolean).join('\n')
+    : exported;
+};
 
 const bankHours = (minutes: number) => {
   const hours = minutes / 60;
@@ -157,9 +192,10 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
     // L'export destiné au client utilise directement le temps client enregistré
     // sur chaque entrée; le temps réellement travaillé demeure interne.
     const durationMinutes = row.clientMinutes;
-    const exportedDescription = exportEntryDescription(
+    const exportedDescription = exportEntryDescriptionWithNotice(
       row.description,
       row.descriptionDocument,
+      options.language,
     );
     const description = bank
       ? descriptionWithBankCode(
@@ -182,7 +218,8 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
       const duration = row.clientMinutes;
       return sum + (duration / 60) * Number(row.hourlyRate);
     }, 0);
-    const totalRow = sheet.addRow({ description: text.total, hours: { formula: `SUM(${sheet.getColumn('hours').letter}2:${sheet.getColumn('hours').letter}${rows.length + 1})`, result: totalHours }, value: { formula: `SUM(${sheet.getColumn('value').letter}2:${sheet.getColumn('value').letter}${rows.length + 1})`, result: totalValue } });
+    const lastDetailRow = sheet.rowCount;
+    const totalRow = sheet.addRow({ description: text.total, hours: { formula: `SUM(${sheet.getColumn('hours').letter}2:${sheet.getColumn('hours').letter}${lastDetailRow})`, result: totalHours }, value: { formula: `SUM(${sheet.getColumn('value').letter}2:${sheet.getColumn('value').letter}${lastDetailRow})`, result: totalValue } });
     totalRow.font = { bold: true, color: { argb: 'FF17324D' } }; totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF3FF' } };
   }
   // Style volontairement sobre et compatible avec l'ancienne application :
@@ -194,7 +231,7 @@ export const exportWorkEntries = async (user: ExportUser, options: ExportOptions
   sheet.getColumn('description').alignment = { horizontal: 'left', vertical: 'top', wrapText: false };
   if (!options.confidential) { sheet.getColumn('rate').numFmt = '"$"#,##0.00'; sheet.getColumn('value').numFmt = '"$"#,##0.00'; }
   for (let row = 2; row <= sheet.rowCount; row += 1) {
-    sheet.getRow(row).height = 15;
+    if (!sheet.getRow(row).height) sheet.getRow(row).height = 15;
     sheet.getRow(row).eachCell({ includeEmpty: true }, (cell) => {
       cell.alignment = { ...cell.alignment, vertical: 'top' };
     });

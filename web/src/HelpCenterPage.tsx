@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.8';
+export const CURRENT_VERSION = '0.4.9';
 
 export const HELP_CONTENT = {
   fr: {
@@ -49,6 +49,14 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.9',
+        date: '7 août 2026',
+        changes: [
+          'Avis ajouté à la fin de chaque description exportée contenant des lignes marquées Interne.',
+          'Avis présenté sans indentation et dans la langue active du rapport.',
+        ],
+      },
       {
         version: '0.4.8',
         date: '7 août 2026',
@@ -228,6 +236,14 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.9',
+        date: 'August 7, 2026',
+        changes: [
+          'Notice added at the end of every exported description containing lines marked Internal.',
+          'Notice displayed without indentation and in the active report language.',
+        ],
+      },
       {
         version: '0.4.8',
         date: 'August 7, 2026',
