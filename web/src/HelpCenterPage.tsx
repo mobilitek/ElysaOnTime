@@ -17,7 +17,7 @@ type Props = {
   onNavigateWorkLog: () => void;
 };
 
-export const CURRENT_VERSION = '0.4.6';
+export const CURRENT_VERSION = '0.4.7';
 
 export const HELP_CONTENT = {
   fr: {
@@ -49,6 +49,15 @@ export const HELP_CONTENT = {
       subscription: ['Souscription expirée', ['Votre compte et vos données ne sont pas supprimés.', 'Vous pouvez consulter votre profil, changer votre mot de passe et sauvegarder vos données.', 'Demandez un renouvellement pour retrouver toutes les fonctions du journal.']],
     },
     releases: [
+      {
+        version: '0.4.7',
+        date: '7 août 2026',
+        changes: [
+          'Date, heures travaillées, heures facturables et mouvement de banque regroupés dans une grille compacte.',
+          'Disposition adaptative sur quatre colonnes dans la fenêtre agrandie et deux colonnes sur les formats plus étroits.',
+          'Sélecteurs Client et Projet alignés sur toute la largeur de leur colonne.',
+        ],
+      },
       {
         version: '0.4.6',
         date: '6 août 2026',
@@ -211,6 +220,15 @@ export const HELP_CONTENT = {
       subscription: ['Expired subscription', ['Your account and data are not deleted.', 'You can review your profile, change your password and back up your data.', 'Request a renewal to regain all work-log features.']],
     },
     releases: [
+      {
+        version: '0.4.7',
+        date: 'August 7, 2026',
+        changes: [
+          'Date, worked hours, billable hours and hour-bank movement grouped in a compact grid.',
+          'Responsive four-column layout in the expanded window and two-column layout on narrower displays.',
+          'Client and Project selectors aligned to fill their columns.',
+        ],
+      },
       {
         version: '0.4.6',
         date: 'August 6, 2026',
