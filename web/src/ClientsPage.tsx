@@ -147,7 +147,7 @@ export function ClientsPage({ language, user, systemInfo, systemInfoError, onLan
       </header>
 
       <section className="content-shell">
-        <div className="page-heading"><div><p className="eyebrow">ONTIME</p><h1>{text.title}</h1><p>{text.subtitle}</p></div><button className="add-button" type="button" onClick={openCreate}><span>+</span>{text.add}</button></div>
+        <div className="page-heading"><div><h1>{text.title}</h1><p>{text.subtitle}</p></div><button className="add-button" type="button" onClick={openCreate}><span>+</span>{text.add}</button></div>
         {error && !isFormOpen ? <p className="error-message page-error" role="alert">{error}</p> : null}
 
         <div className="client-card">

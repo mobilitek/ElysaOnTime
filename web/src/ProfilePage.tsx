@@ -143,7 +143,7 @@ export function ProfilePage({
         </div>
       </header>
       <section className="content-shell profile-shell">
-        <div className="page-heading"><div><p className="eyebrow">ONTIME</p><h1>{text.title}</h1><p>{text.subtitle}</p></div></div>
+        <div className="page-heading"><div><h1>{text.title}</h1><p>{text.subtitle}</p></div></div>
         <div className="profile-grid">
           <section className="profile-card"><h2>{text.info}</h2><form onSubmit={saveProfile}>
             <label>{text.firstName}<input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={100} /></label>
