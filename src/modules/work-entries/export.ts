@@ -78,7 +78,7 @@ export const exportEntryDescriptionWithNotice = (
 ) => {
   const exported = exportEntryDescription(description, document);
   return hasHiddenDescriptionLines(description, document)
-    ? [exported, internalEntryNotice(language)].filter(Boolean).join('\n')
+    ? `${exported}\n\n${internalEntryNotice(language)}`
     : exported;
 };
 

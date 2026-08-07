@@ -422,7 +422,8 @@ Lorsque le mode confidentiel est activé :
 
 Lorsqu'une entrée contient au moins une ligne interne exclue du rapport, l'avis
 est ajouté à la toute fin de la même cellule Description que les autres éléments
-de la journée, sans indentation et sous une ligne de séparation. Il ne crée
+de la journée, après une ligne vide, sans indentation et sous une ligne de
+séparation composée de tirets. Il ne crée
 aucune ligne Excel supplémentaire et ne modifie pas la hauteur compacte de la
 journée. L'avis suit la langue du rapport. Une entrée ne contenant aucun élément
 masqué ne reçoit pas cet avis.

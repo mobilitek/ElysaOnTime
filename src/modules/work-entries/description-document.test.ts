@@ -44,6 +44,7 @@ describe('legacy work-entry export normalization', () => {
       'en',
     )).toBe([
       '- Visible',
+      '',
       '-------------',
       'Some information has been intentionally hidden because it is marked as internal.',
       'When relevant and appropriate for disclosure, it may be provided upon request by an authorized representative.',
